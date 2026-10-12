@@ -1,0 +1,76 @@
+{
+    "name": "cosmos",
+    "private": true,
+    "homepage": "https://github.com/electrovir/cosmos",
+    "bugs": {
+        "url": "https://github.com/electrovir/cosmos/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/electrovir/cosmos.git"
+    },
+    "license": "(MIT OR CC0-1.0)",
+    "author": {
+        "name": "electrovir",
+        "url": "https://github.com/electrovir"
+    },
+    "sideEffects": false,
+    "type": "module",
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "build": "npm run build --workspace @cosmos/frontend",
+        "build:data": "npm run build --workspace @cosmos/scripts",
+        "compile": "virmator compile",
+        "format": "virmator format",
+        "lint": "virmator lint fix",
+        "publish": "virmator publish npm run test:all",
+        "start": "npm start --workspace @cosmos/frontend",
+        "test": "npm run compile && mono-vir for-each-async npm run test",
+        "test:all": "npm run test:coverage && runstorm --names spelling,format,deps,lint,build \"npm run test:spelling\" \"npm run test:format\" \"npm run test:deps\" \"npm run test:lint\" \"npm run build\"",
+        "test:coverage": "npm run compile && mono-vir for-each-async npm run test:coverage",
+        "test:deps": "virmator deps check",
+        "test:format": "virmator format check",
+        "test:lint": "virmator lint",
+        "test:spelling": "virmator spellcheck",
+        "test:update": "npm run compile && mono-vir for-each-async npm run test:update"
+    },
+    "dependencies": {
+        "@electrovir/color": "^2.0.0",
+        "vira": "^33.1.0"
+    },
+    "devDependencies": {
+        "@eslint/js": "10.0.1",
+        "@stylistic/eslint-plugin": "^5.10.0",
+        "@stylistic/eslint-plugin-ts": "^4.4.1",
+        "@typescript-eslint/eslint-plugin": "^8.71.0",
+        "cspell": "^10.3.6",
+        "dependency-cruiser": "^18.4.0",
+        "esbuild": "^0.28.2",
+        "eslint": "^10.11.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-jsdoc": "^65.0.1",
+        "eslint-plugin-playwright": "^2.12.0",
+        "eslint-plugin-prettier": "^5.5.6",
+        "eslint-plugin-sonarjs": "^4.2.2",
+        "eslint-plugin-unicorn": "^76.0.0",
+        "mono-vir": "^2.5.1",
+        "npm-check-updates": "^23.1.0",
+        "prettier": "3.3.3",
+        "prettier-plugin-interpolated-html-tags": "^2.0.2",
+        "prettier-plugin-jsdoc": "^1.8.1",
+        "prettier-plugin-multiline-arrays": "~4.1.11",
+        "prettier-plugin-organize-imports": "^4.3.0",
+        "prettier-plugin-packagejson": "^3.0.2",
+        "prettier-plugin-sort-json": "^4.2.0",
+        "prettier-plugin-toml": "^3.0.2",
+        "runstorm": "^1.1.0",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.71.0",
+        "virmator": "^14.37.2"
+    },
+    "engines": {
+        "node": ">=22"
+    }
+}
