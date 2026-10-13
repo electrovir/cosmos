@@ -77,19 +77,17 @@ export function formatTimeSpeed(speed: number) {
 }
 
 /**
- * Moves the shown time ahead by one frame. A body's spin runs behind the shown time whenever time
- * runs faster than the body is allowed to spin, then catches back up at top spin speed once time
- * slows down. Whole turns of lag don't change how the body looks, so the lag is kept under one
- * turn.
+ * How far a body's spin runs behind the shown time after one more frame. The spin runs behind
+ * whenever time runs faster than the body is allowed to spin, then catches back up at top spin
+ * speed once time slows down. Whole turns of lag don't change how the body looks, so the lag is
+ * kept under one turn.
  */
-export function advanceShownTime({
-    shownMilliseconds,
+export function advanceSpinLag({
     spinLagMilliseconds,
     frameSeconds,
     speed,
     spinPeriodMilliseconds,
 }: Readonly<{
-    shownMilliseconds: number;
     spinLagMilliseconds: number;
     frameSeconds: number;
     speed: number;
@@ -101,9 +99,5 @@ export function advanceShownTime({
         shownAdvance + spinLagMilliseconds,
         frameSeconds * 1000 * maxSpinSpeed,
     );
-    return {
-        shownMilliseconds: shownMilliseconds + shownAdvance,
-        spinLagMilliseconds:
-            (spinLagMilliseconds + shownAdvance - spinAdvance) % spinPeriodMilliseconds,
-    };
+    return (spinLagMilliseconds + shownAdvance - spinAdvance) % spinPeriodMilliseconds;
 }

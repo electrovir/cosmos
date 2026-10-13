@@ -5,7 +5,8 @@
     "sideEffects": false,
     "type": "module",
     "scripts": {
-        "build": "tsx src/build-earth-data.script.ts && tsx src/build-moon-data.script.ts && tsx src/build-sky-data.script.ts",
+        "build": "tsx src/build-earth-data.script.ts && tsx src/build-moon-data.script.ts && tsx src/build-sky-data.script.ts && tsx src/build-surface-map-data.script.ts",
+        "build:pronunciations": "tsx src/generate-pronunciations.script.ts",
         "compile": "virmator compile",
         "test": "virmator test node",
         "test:coverage": "npm run test coverage",
@@ -15,11 +16,13 @@
         "@augment-vir/assert": "^32.5.0",
         "@augment-vir/common": "^32.5.0",
         "@cosmos/frontend": "*",
+        "@huggingface/transformers": "^3.8.1",
+        "kokoro-js": "^1.2.1",
         "sharp": "^0.35.5"
     },
     "devDependencies": {
         "@augment-vir/test": "^32.5.0",
-        "@types/node": "^26.6.3",
+        "@types/node": "^26.6.4",
         "c8": "^12.0.0",
         "istanbul-smart-text-reporter": "^1.1.5",
         "tsx": "^4.23.15"

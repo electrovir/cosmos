@@ -4,7 +4,7 @@ import {type FullSpaRoute, PathTree, SpaRouter} from 'spa-router-vir';
 import {joinUrlPaths, parseUrl} from 'url-vir';
 import {ViraThemeClient, ViraThemeSelection} from 'vira';
 import {bodyCatalog} from '../../data/body-catalog.js';
-import {BodyId, BodyKind, isCutOpenByBodyKind} from '../../data/celestial-body.js';
+import {BodyId, BodyKind, isCutOpenByBodyId} from '../../data/celestial-body.js';
 import {FocusScale} from '../focus-scale.js';
 import {createCosmosLocalDbClient} from './frontend-clients/local-db.client.js';
 import {determineScreenSize} from './screen-size.js';
@@ -54,38 +54,34 @@ export type FrontendPaths = Readonly<typeof frontendPathTree.PathsType>;
 export type FrontendRoute = Readonly<FullSpaRoute<FrontendPaths, undefined, undefined>>;
 export type FrontendRouter = SpaRouter<FrontendPaths>;
 
-/** Bodies that can be shown up close so far. */
-const viewableBodyIds: ReadonlyArray<BodyId> = [
-    BodyId.Sun,
-    BodyId.Earth,
-    BodyId.Moon,
-];
-
 function findViewableBody(name: string | undefined) {
-    return check.isEnumValue(name, BodyId) && viewableBodyIds.includes(name) ? name : undefined;
+    return check.isEnumValue(name, BodyId) ? name : undefined;
 }
 
 /**
  * The route's scale, the body the view centers on, and the selected layer. A moon follows its
  * planet in the path, as in `/planet/earth/moon`. Unknown scales give a close-up and unknown body
- * names give Earth.
+ * names give Earth. Wider than a planet's moons, a moon gives way to its planet.
  */
 export function getRouteFocus(route: Readonly<Pick<FullSpaRoute<FrontendPaths>, 'paths'>>) {
     const scaleName = route.paths[0];
-    const namedBodyId = findViewableBody(route.paths[1]) ?? BodyId.Earth;
-    const childId = findViewableBody(route.paths[2]);
-    const moonId = childId && bodyCatalog[childId].parentId === namedBodyId ? childId : undefined;
-    const bodyId = moonId ?? namedBodyId;
     const scale =
         check.isEnumValue(scaleName, FocusScale) && scaleName !== FocusScale.Body
             ? scaleName
             : FocusScale.Body;
+    const namedBodyId = findViewableBody(route.paths[1]) ?? BodyId.Earth;
+    const childId =
+        scale === FocusScale.Body || scale === FocusScale.Moons
+            ? findViewableBody(route.paths[2])
+            : undefined;
+    const moonId = childId && bodyCatalog[childId].parentId === namedBodyId ? childId : undefined;
+    const bodyId = moonId ?? namedBodyId;
     return {
         scale,
         bodyId,
         /** Not checked against the body's layers, which load later. */
         layerId:
-            scale === FocusScale.Body && isCutOpenByBodyKind[bodyCatalog[bodyId].kind]
+            scale === FocusScale.Body && isCutOpenByBodyId[bodyId]
                 ? route.paths[moonId ? 3 : 2] || undefined
                 : undefined,
     };

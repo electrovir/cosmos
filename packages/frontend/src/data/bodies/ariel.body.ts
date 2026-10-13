@@ -1,0 +1,28 @@
+import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
+
+const arielRadiusKm = 578.9;
+
+const ariel: BodyDetails = {
+    id: BodyId.Ariel,
+    description: [
+        "The brightest of Uranus' moons, with the youngest-looking surface, crossed by long valleys.",
+        'Like the other large moons of Uranus, it was seen up close only once, by Voyager 2 in 1986, which saw only its southern half.',
+    ].join('\n\n'),
+    layers: [
+        {
+            id: 'interior',
+            name: 'Interior',
+            region: LayerRegion.Interior,
+            state: MatterState.Solid,
+            color: '#b4b0ac',
+            radiusKm: {
+                min: 0,
+                max: arielRadiusKm,
+            },
+            composition: 'Ice and rock',
+            description: 'About half ice and half rock.',
+        },
+    ],
+};
+
+export default ariel;

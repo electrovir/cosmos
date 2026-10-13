@@ -1,6 +1,6 @@
 import {assert} from '@augment-vir/assert';
 import {describe, it} from '@augment-vir/test';
-import {advanceShownTime, formatTimeSpeed, getTimeSpeed} from './time-speed.js';
+import {advanceSpinLag, formatTimeSpeed, getTimeSpeed} from './time-speed.js';
 
 const siderealDayMilliseconds = 86_164_091;
 
@@ -27,41 +27,37 @@ describe(getTimeSpeed.name, () => {
     });
 });
 
-describe(advanceShownTime.name, () => {
+describe(advanceSpinLag.name, () => {
     it('spins along with the shown time when time is slow', () => {
-        assert.deepEquals(
-            advanceShownTime({
-                shownMilliseconds: 0,
+        assert.strictEquals(
+            advanceSpinLag({
                 spinLagMilliseconds: 0,
                 frameSeconds: 1,
                 speed: 3600,
                 spinPeriodMilliseconds: siderealDayMilliseconds,
             }),
-            {
-                shownMilliseconds: 3_600_000,
-                spinLagMilliseconds: 0,
-            },
+            0,
         );
     });
     it('keeps the spin lag under one turn when time is fast', () => {
-        const advanced = advanceShownTime({
-            shownMilliseconds: 0,
+        const spinLagMilliseconds = advanceSpinLag({
             spinLagMilliseconds: 0,
             frameSeconds: 1,
             speed: getTimeSpeed(1),
             spinPeriodMilliseconds: siderealDayMilliseconds,
         });
-        assert.isAbove(advanced.spinLagMilliseconds, 0);
-        assert.isBelow(advanced.spinLagMilliseconds, siderealDayMilliseconds);
+        assert.isAbove(spinLagMilliseconds, 0);
+        assert.isBelow(spinLagMilliseconds, siderealDayMilliseconds);
     });
     it('catches the spin back up once time slows down', () => {
-        const advanced = advanceShownTime({
-            shownMilliseconds: 0,
-            spinLagMilliseconds: 3_600_000,
-            frameSeconds: 1,
-            speed: 1,
-            spinPeriodMilliseconds: siderealDayMilliseconds,
-        });
-        assert.strictEquals(advanced.spinLagMilliseconds, 0);
+        assert.strictEquals(
+            advanceSpinLag({
+                spinLagMilliseconds: 3_600_000,
+                frameSeconds: 1,
+                speed: 1,
+                spinPeriodMilliseconds: siderealDayMilliseconds,
+            }),
+            0,
+        );
     });
 });

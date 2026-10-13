@@ -1,12 +1,12 @@
 // cspell:words slerp
 import {assertWrap} from '@augment-vir/assert';
-import {randomInteger} from '@augment-vir/common';
+import {getObjectTypedValues, mapObjectValues, randomInteger} from '@augment-vir/common';
 import {
     AmbientLight,
-    DirectionalLight,
     MOUSE,
     MathUtils,
     PerspectiveCamera,
+    PointLight,
     Quaternion,
     Raycaster,
     Scene,
@@ -19,7 +19,7 @@ import {bodyCatalog} from '../../data/body-catalog.js';
 import {
     BodyId,
     BodyKind,
-    isCutOpenByBodyKind,
+    isCutOpenByBodyId,
     type BodyDetails,
     type BodySummary,
 } from '../../data/celestial-body.js';
@@ -44,12 +44,13 @@ import {
 import {type Star} from '../../physics/star-catalog.js';
 import {defaultFieldOpacity} from '../field-opacity.js';
 import {FocusScale} from '../focus-scale.js';
-import {advanceShownTime} from '../time-speed.js';
+import {advanceSpinLag} from '../time-speed.js';
 import {type BodyAssets} from './body-assets.js';
 import {createLayeredBodyModel, type LayeredBodyModel} from './layered-body-model.js';
 import {createMagnetosphereModel, type MagnetosphereModel} from './magnetosphere-model.js';
 import {
     createOrbitModel,
+    getBodyMinHeightShare,
     getMinSizeScale,
     getPickMissRadians,
     type OrbitModel,
@@ -81,22 +82,46 @@ const highlightGlow = {
 const clickMoveTolerance = 12;
 /** Readouts change too fast to read if sent every frame. */
 const readoutIntervalSeconds = 0.25;
-/** Far enough to take in Earth's whole orbit around the Sun, in kilometers. */
-const maxCameraDistanceKm = 500_000_000;
+/** Far enough to take in Pluto's whole orbit around the Sun, in kilometers. */
+const maxCameraDistanceKm = 20_000_000_000;
 /** Just past the Moon's farthest point from Earth. */
 const moonOrbitMaxRadiusKm = 410_000;
-/** Earth's Hill sphere: how far out its gravity can hold onto moons. */
+/**
+ * Earth's Hill sphere: how far out its gravity can hold onto moons. Other planets' scale with how
+ * far out their moons reach.
+ */
 const neighborhoodRadiusKm = 1_500_000;
-/** Where the camera goes when the URL asks for a scale, given the focused body's radius. */
-const focusScaleDistancesKm: Readonly<Record<FocusScale, (bodyRadiusKm: number) => number>> = {
-    [FocusScale.Body](bodyRadiusKm) {
-        return bodyRadiusKm * 5.5;
+
+/**
+ * How far out the moons of the body's planet reach (for a moon, its own planet's). Bodies without
+ * moons get the Moon's reach, which the scale distances were first set for.
+ */
+function getMoonSystemRadiusKm(summary: Readonly<BodySummary>) {
+    const planetId =
+        summary.kind === BodyKind.Moon ? assertWrap.isDefined(summary.parentId) : summary.id;
+    const moonReachesKm = getObjectTypedValues(bodyCatalog)
+        .filter((moon) => moon.kind === BodyKind.Moon && moon.parentId === planetId)
+        .map((moon) => {
+            return moon.orbit
+                ? moon.orbit.semiMajorAxisKm * (1 + moon.orbit.eccentricity)
+                : moonOrbitMaxRadiusKm;
+        });
+    return moonReachesKm.length ? Math.max(...moonReachesKm) : moonOrbitMaxRadiusKm;
+}
+
+/** Where the camera goes when the URL asks for a scale, given the focused body. */
+const focusScaleDistancesKm: Readonly<
+    Record<FocusScale, (summary: Readonly<BodySummary>) => number>
+> = {
+    [FocusScale.Body](summary) {
+        return summary.radiusKm * 5.5;
     },
-    [FocusScale.Moons]() {
-        return 2_000_000;
+    [FocusScale.Moons](summary) {
+        return (getMoonSystemRadiusKm(summary) * 2_000_000) / moonOrbitMaxRadiusKm;
     },
+    /** Out past Jupiter, where the inner planets still show apart from the Sun. */
     [FocusScale.System]() {
-        return maxCameraDistanceKm;
+        return 3_000_000_000;
     },
     /** Nothing past the solar system is drawn yet. */
     [FocusScale.Galaxy]() {
@@ -109,8 +134,6 @@ const focusScaleDistancesKm: Readonly<Record<FocusScale, (bodyRadiusKm: number) 
         return maxCameraDistanceKm;
     },
 };
-/** The focused body's smallest size across, as a share of the view's height. */
-const bodyMinHeightShare = 0.03;
 /** How high above the equator a close-up camera sits. */
 const closeUpLatitudeDegrees = 30;
 const cameraFlightSeconds = 1.4;
@@ -139,6 +162,12 @@ type BodyView = {
     closeUpTurnFromCutRadians: number;
     /** Where the drawn atmosphere ends, in kilometers from the center. */
     outerDisplayRadiusKm: number;
+    /**
+     * Where the drawn surface is, in kilometers from the center. Zoomed out, bodies are sized by
+     * this, so a tall drawn atmosphere doesn't make the planet itself look smaller than its
+     * neighbors.
+     */
+    surfaceDisplayRadiusKm: number;
     dispose: () => void;
 };
 
@@ -201,6 +230,10 @@ function createPlanetView({
             details,
             radialScale,
         }),
+        surfaceDisplayRadiusKm: toDisplayRadius({
+            scale: radialScale,
+            realKm: summary.radiusKm,
+        }),
         dispose() {
             layeredModel.dispose();
             magnetosphereModel?.dispose();
@@ -241,6 +274,10 @@ function createStarView({
             details,
             radialScale,
         }),
+        surfaceDisplayRadiusKm: toDisplayRadius({
+            scale: radialScale,
+            realKm: summary.radiusKm,
+        }),
         dispose() {
             layeredModel.dispose();
             sunModel.dispose();
@@ -253,6 +290,7 @@ const bodyViewFactories: Readonly<
     Record<BodyKind, ((params: Readonly<BodyViewParams>) => BodyView) | undefined>
 > = {
     [BodyKind.Planet]: createPlanetView,
+    [BodyKind.DwarfPlanet]: createPlanetView,
     [BodyKind.Moon]: createPlanetView,
     [BodyKind.Star]: createStarView,
     [BodyKind.PlanetarySystem]: undefined,
@@ -283,11 +321,12 @@ export function createCosmosScene() {
                 longitudeDegrees: 45,
             }),
         )
-        .multiplyScalar(focusScaleDistancesKm[FocusScale.Body](bodyCatalog[BodyId.Earth].radiusKm));
+        .multiplyScalar(focusScaleDistancesKm[FocusScale.Body](bodyCatalog[BodyId.Earth]));
     const sky = createSkyModel();
     scene.add(sky.group);
-    const sunLight = new DirectionalLight(0xff_ff_ff, 3);
-    scene.add(sunLight, sunLight.target, new AmbientLight(0xff_ff_ff, 0.06));
+    /** No falloff with distance, so every planet is lit as brightly as Earth is. */
+    const sunLight = new PointLight(0xff_ff_ff, 3, 0, 0);
+    scene.add(sunLight, new AmbientLight(0xff_ff_ff, 0.06));
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.mouseButtons.MIDDLE = MOUSE.PAN;
@@ -325,8 +364,8 @@ export function createCosmosScene() {
         /** How many times faster than real time the shown time runs. */
         timeSpeed: number;
         simulationMilliseconds: number;
-        /** How far the body's spin runs behind the shown time, which it does when time is fast. */
-        spinLagMilliseconds: number;
+        /** How far each body's spin runs behind the shown time, which it does when time is fast. */
+        spinLagMilliseconds: Record<BodyId, number>;
         animationSeconds: number;
         weather: Readonly<SolarWindState>;
         /** The wind's conditions with quick swings averaged out, so the field shape changes gently. */
@@ -379,7 +418,9 @@ export function createCosmosScene() {
         disabledEffects: [],
         timeSpeed: 1,
         simulationMilliseconds: Date.now(),
-        spinLagMilliseconds: 0,
+        spinLagMilliseconds: mapObjectValues(bodyCatalog, () => {
+            return 0;
+        }),
         animationSeconds: 0,
         weather: quietSolarWind,
         conditions: getSolarWindConditions(quietSolarWind),
@@ -585,7 +626,7 @@ export function createCosmosScene() {
             current.requestedFocusScale == undefined ||
             current.requestedFocusScale === FocusScale.Body
         ) {
-            const endDistanceKm = focusScaleDistancesKm[FocusScale.Body](current.summary.radiusKm);
+            const endDistanceKm = focusScaleDistancesKm[FocusScale.Body](current.summary);
             const startPose =
                 previousSummary && previousSummary.id !== current.summary.id
                     ? getCameraPoseInFrame({
@@ -613,6 +654,13 @@ export function createCosmosScene() {
         }
     }
 
+    /** The time a body's spin is drawn at, which runs behind the shown time when time is fast. */
+    function getSpinDaysSinceJ2000(bodyId: BodyId) {
+        return getDaysSinceJ2000(
+            current.simulationMilliseconds - current.spinLagMilliseconds[bodyId],
+        );
+    }
+
     /**
      * The turn from the J2000 ecliptic into the body's own frame and where the Sun is in that frame
      * (unless the body is the Sun), or `undefined` for a body with no known rotation.
@@ -624,9 +672,7 @@ export function createCosmosScene() {
         const daysSinceJ2000 = getDaysSinceJ2000(current.simulationMilliseconds);
         const toBodyFrame = getBodyOrientation({
             rotation: summary.rotation,
-            daysSinceJ2000: getDaysSinceJ2000(
-                current.simulationMilliseconds - current.spinLagMilliseconds,
-            ),
+            daysSinceJ2000: getSpinDaysSinceJ2000(summary.id),
         }).invert();
         const bodyPosition = getBodyPosition({
             bodyId: summary.id,
@@ -654,18 +700,17 @@ export function createCosmosScene() {
 
     /**
      * Picks the scale by how wide a circle around the body fits the view's height. A body far
-     * bigger than the Moon's orbit, like the Sun, stays up close until it looks small, and skips
+     * bigger than its moons' orbits, like the Sun, stays up close until it looks small, and skips
      * the moons scale.
      */
     function getDistanceFocusScale() {
         const fitRadiusKm = camera.position.length() * Math.tan(degreesToRadians(camera.fov / 2));
-        const closeUpMaxRadiusKm = Math.max(
-            moonOrbitMaxRadiusKm,
-            (current.summary?.radiusKm ?? 0) * 10,
-        );
+        const summary = current.summary ?? bodyCatalog[BodyId.Earth];
+        const moonSystemRadiusKm = getMoonSystemRadiusKm(summary);
+        const closeUpMaxRadiusKm = Math.max(moonSystemRadiusKm, summary.radiusKm * 10);
         return fitRadiusKm <= closeUpMaxRadiusKm
             ? FocusScale.Body
-            : fitRadiusKm <= neighborhoodRadiusKm
+            : fitRadiusKm <= (moonSystemRadiusKm * neighborhoodRadiusKm) / moonOrbitMaxRadiusKm
               ? FocusScale.Moons
               : FocusScale.System;
     }
@@ -696,6 +741,28 @@ export function createCosmosScene() {
         downPosition: undefined,
         activePointerIds: [],
     };
+    /**
+     * If a pointer's `pointerup` or `pointercancel` never arrives, OrbitControls keeps counting it:
+     * one finger then pinch-zooms, three fingers do nothing, and its document-wide move listener
+     * turns drags over the HTML panels into camera moves. A primary pointerdown means the browser
+     * has no other pointer of that type down, so anything still tracked is stale.
+     */
+    function forgetStalePointers(event: PointerEvent) {
+        if (!event.isPrimary) {
+            return;
+        }
+        pointer.activePointerIds = [];
+        /** The controls keep their pointer list untyped. */
+        Object.assign(controls, {
+            _pointers: [],
+            _pointerPositions: {},
+        });
+        /** Reconnecting drops the controls' gesture state and document listeners. */
+        controls.connect(renderer.domElement);
+    }
+    window.addEventListener('pointerdown', forgetStalePointers, {
+        capture: true,
+    });
     renderer.domElement.addEventListener('pointerdown', (event) => {
         pointer.activePointerIds = [
             ...pointer.activePointerIds,
@@ -745,10 +812,13 @@ export function createCosmosScene() {
                       radiusKm:
                           current.view.outerDisplayRadiusKm *
                           getMinSizeScale({
-                              radiusKm: current.view.outerDisplayRadiusKm,
+                              radiusKm: current.view.surfaceDisplayRadiusKm,
                               distanceKm: camera.position.length(),
                               viewHeightPerDistance,
-                              minHeightShare: bodyMinHeightShare,
+                              minHeightShare:
+                                  current.view.orbitModel?.getFocusedMinHeightShare() ??
+                                  getBodyMinHeightShare(current.summary.id),
+                              maxRadiusKm: current.view.orbitModel?.getFocusedMaxRadiusKm(),
                           }),
                       viewHeightPerDistance,
                   })
@@ -766,7 +836,7 @@ export function createCosmosScene() {
             return;
         } else if (!isCloseUp) {
             return;
-        } else if (!current.summary || !isCutOpenByBodyKind[current.summary.kind]) {
+        } else if (!current.summary || !isCutOpenByBodyId[current.summary.id]) {
             return;
         }
         const pick = current.view.layeredModel.pick(raycaster.ray);
@@ -796,17 +866,18 @@ export function createCosmosScene() {
         if (qualityScaler.recordFrame(frameSeconds)) {
             current.onRenderQualityChange?.(qualityScaler.getQuality());
         }
-        const shownTime = advanceShownTime({
-            shownMilliseconds: current.simulationMilliseconds,
-            spinLagMilliseconds: current.spinLagMilliseconds,
-            frameSeconds,
-            speed: current.timeSpeed,
-            spinPeriodMilliseconds: current.summary?.rotation
-                ? (360 / current.summary.rotation.primeMeridianDegreesPerDay) * 86_400_000
-                : Infinity,
+        current.simulationMilliseconds += frameSeconds * 1000 * current.timeSpeed;
+        current.spinLagMilliseconds = mapObjectValues(bodyCatalog, (bodyId, summary) => {
+            return summary.rotation
+                ? advanceSpinLag({
+                      spinLagMilliseconds: current.spinLagMilliseconds[bodyId],
+                      frameSeconds,
+                      speed: current.timeSpeed,
+                      spinPeriodMilliseconds:
+                          (360 / summary.rotation.primeMeridianDegreesPerDay) * 86_400_000,
+                  })
+                : 0;
         });
-        current.simulationMilliseconds = shownTime.shownMilliseconds;
-        current.spinLagMilliseconds = shownTime.spinLagMilliseconds;
         current.animationSeconds += frameSeconds;
         /** The wind's own weather runs on the wall clock, so speeding up time doesn't blur it. */
         current.weather = advanceSolarWind({
@@ -883,14 +954,8 @@ export function createCosmosScene() {
             sunRadiusKm: bodyCatalog[BodyId.Sun].radiusKm,
             pixelRatio: renderer.getPixelRatio(),
         });
-        if (towardSun) {
-            sunLight.position.copy(towardSun).multiplyScalar(maxCameraDistanceKm);
-            sunLight.target.position.set(0, 0, 0);
-        } else if (towardCut) {
-            /** The Sun is the focused body, so its light shines outward from the center. */
-            sunLight.position.set(0, 0, 0);
-            sunLight.target.position.copy(towardCut);
-        }
+        /** Without a Sun position, the Sun is the focused body, at the center. */
+        sunLight.position.copy(bodyFrame?.sunPosition ?? new Vector3());
         if (current.view) {
             /** The cut, field, and wind hide when zoomed out so they don't clutter the orbits. */
             const isCloseUp = focusScale === FocusScale.Body;
@@ -912,15 +977,19 @@ export function createCosmosScene() {
             if (bodyFrame) {
                 current.view.orbitModel?.update({
                     ...bodyFrame,
+                    getSpinDaysSinceJ2000,
                     cameraPosition: camera.position,
                     viewHeightPerDistance,
                 });
             }
             const bodyScale = getMinSizeScale({
-                radiusKm: current.view.outerDisplayRadiusKm,
+                radiusKm: current.view.surfaceDisplayRadiusKm,
                 distanceKm: camera.position.length(),
                 viewHeightPerDistance,
-                minHeightShare: bodyMinHeightShare,
+                minHeightShare:
+                    current.view.orbitModel?.getFocusedMinHeightShare() ??
+                    getBodyMinHeightShare(current.summary?.id),
+                maxRadiusKm: current.view.orbitModel?.getFocusedMaxRadiusKm(),
             });
             const glow =
                 highlightGlow.min +
@@ -934,9 +1003,9 @@ export function createCosmosScene() {
                 towardSun: towardCut ?? new Vector3(1, 0, 0),
                 glow,
                 animationSeconds: current.animationSeconds,
-                isCutOpen:
-                    isCloseUp && !!current.summary && isCutOpenByBodyKind[current.summary.kind],
+                isCutOpen: isCloseUp && !!current.summary && isCutOpenByBodyId[current.summary.id],
                 scale: bodyScale,
+                renderer,
             });
             current.view.sunModel?.update({
                 daysSinceJ2000: getDaysSinceJ2000(current.simulationMilliseconds),
@@ -1033,7 +1102,7 @@ export function createCosmosScene() {
                 return;
             }
             const endDistanceKm = focusScaleDistancesKm[focusScale](
-                (current.summary ?? bodyCatalog[BodyId.Earth]).radiusKm,
+                current.summary ?? bodyCatalog[BodyId.Earth],
             );
             if (current.view) {
                 startCameraFlight({
@@ -1077,6 +1146,9 @@ export function createCosmosScene() {
         },
         dispose() {
             renderer.setAnimationLoop(null);
+            window.removeEventListener('pointerdown', forgetStalePointers, {
+                capture: true,
+            });
             controls.dispose();
             current.view?.dispose();
             sky.dispose();

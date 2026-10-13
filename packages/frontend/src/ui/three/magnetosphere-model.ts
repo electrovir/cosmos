@@ -14,7 +14,7 @@ import {
     MathUtils,
     Matrix4,
     Mesh,
-    Plane,
+    type Plane,
     Points,
     Quaternion,
     ShaderMaterial,

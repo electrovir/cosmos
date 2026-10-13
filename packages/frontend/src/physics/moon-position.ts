@@ -4,6 +4,8 @@ import {degreesToRadians} from './angles.js';
 export const moonRadiusKm = 1737.4;
 /** One trip around Earth against the stars. */
 export const moonSiderealPeriodDays = 27.321661;
+/** The Moon's average distance from Earth. */
+export const moonSemiMajorAxisKm = 384_399;
 
 /** Earth's equatorial radius, which the Moon's distance is measured in by its parallax. */
 const earthEquatorialRadiusKm = 6378.14;

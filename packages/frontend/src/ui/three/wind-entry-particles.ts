@@ -1,5 +1,6 @@
+// cspell:words footward lerp nightside smootherstep
 import {assertWrap} from '@augment-vir/assert';
-import {createArray} from '@augment-vir/common';
+import {createArray, removeDuplicates} from '@augment-vir/common';
 import {
     AdditiveBlending,
     BufferAttribute,
@@ -210,9 +211,7 @@ export function createWindEntryParticles({
             .filter(
                 (candidate): candidate is {line: EntryLine; lineIndex: number} => !!candidate.line,
             );
-        const routes = [
-            ...new Set(candidates.map((candidate) => candidate.line.route)),
-        ];
+        const routes = removeDuplicates(candidates.map((candidate) => candidate.line.route));
         const route = routes[Math.floor(random() * routes.length)];
         const routeCandidates = candidates.filter((candidate) => candidate.line.route === route);
         const chosen = routeCandidates[Math.floor(random() * routeCandidates.length)];
@@ -309,8 +308,7 @@ export function createWindEntryParticles({
                       stage: EntryStage.Line,
                       stageSeconds: 0,
                   };
-        }
-        if (particle.stage === EntryStage.Line) {
+        } else if (particle.stage === EntryStage.Line) {
             return stageSeconds < timing.lineSeconds
                 ? {
                       ...particle,
@@ -325,13 +323,14 @@ export function createWindEntryParticles({
                         stage: EntryStage.Landed,
                         stageSeconds: 0,
                     };
+        } else {
+            return stageSeconds < landedSeconds
+                ? {
+                      ...particle,
+                      stageSeconds,
+                  }
+                : undefined;
         }
-        return stageSeconds < landedSeconds
-            ? {
-                  ...particle,
-                  stageSeconds,
-              }
-            : undefined;
     }
 
     function placeParticle({

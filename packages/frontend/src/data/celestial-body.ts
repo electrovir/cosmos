@@ -5,6 +5,7 @@ import {type CrustBoundary} from './earth/earth-data-files.js';
 export enum BodyKind {
     Star = 'star',
     Planet = 'planet',
+    DwarfPlanet = 'dwarf-planet',
     Moon = 'moon',
     PlanetarySystem = 'planetary-system',
     Galaxy = 'galaxy',
@@ -12,22 +13,74 @@ export enum BodyKind {
     GalaxyGroup = 'galaxy-group',
 }
 
-/** Whether a close-up of each kind of body is cut open to show its layers. */
-export const isCutOpenByBodyKind: Readonly<Record<BodyKind, boolean>> = {
-    [BodyKind.Star]: true,
-    [BodyKind.Planet]: true,
-    [BodyKind.Moon]: false,
-    [BodyKind.PlanetarySystem]: false,
-    [BodyKind.Galaxy]: false,
-    [BodyKind.Nebula]: false,
-    [BodyKind.GalaxyGroup]: false,
-};
-
 export enum BodyId {
     Sun = 'sun',
+    Mercury = 'mercury',
+    Venus = 'venus',
     Earth = 'earth',
     Moon = 'moon',
+    Mars = 'mars',
+    Phobos = 'phobos',
+    Deimos = 'deimos',
+    Jupiter = 'jupiter',
+    Io = 'io',
+    Europa = 'europa',
+    Ganymede = 'ganymede',
+    Callisto = 'callisto',
+    Saturn = 'saturn',
+    Mimas = 'mimas',
+    Enceladus = 'enceladus',
+    Tethys = 'tethys',
+    Dione = 'dione',
+    Rhea = 'rhea',
+    Titan = 'titan',
+    Iapetus = 'iapetus',
+    Uranus = 'uranus',
+    Miranda = 'miranda',
+    Ariel = 'ariel',
+    Umbriel = 'umbriel',
+    Titania = 'titania',
+    Oberon = 'oberon',
+    Neptune = 'neptune',
+    Triton = 'triton',
+    Pluto = 'pluto',
+    Charon = 'charon',
 }
+
+/** Whether a close-up of each body is cut open to show its layers. */
+export const isCutOpenByBodyId: Readonly<Record<BodyId, boolean>> = {
+    [BodyId.Sun]: true,
+    [BodyId.Mercury]: false,
+    [BodyId.Venus]: false,
+    [BodyId.Earth]: true,
+    [BodyId.Moon]: false,
+    [BodyId.Mars]: false,
+    [BodyId.Phobos]: false,
+    [BodyId.Deimos]: false,
+    [BodyId.Jupiter]: false,
+    [BodyId.Io]: false,
+    [BodyId.Europa]: false,
+    [BodyId.Ganymede]: false,
+    [BodyId.Callisto]: false,
+    [BodyId.Saturn]: false,
+    [BodyId.Mimas]: false,
+    [BodyId.Enceladus]: false,
+    [BodyId.Tethys]: false,
+    [BodyId.Dione]: false,
+    [BodyId.Rhea]: false,
+    [BodyId.Titan]: false,
+    [BodyId.Iapetus]: false,
+    [BodyId.Uranus]: false,
+    [BodyId.Miranda]: false,
+    [BodyId.Ariel]: false,
+    [BodyId.Umbriel]: false,
+    [BodyId.Titania]: false,
+    [BodyId.Oberon]: false,
+    [BodyId.Neptune]: false,
+    [BodyId.Triton]: false,
+    [BodyId.Pluto]: false,
+    [BodyId.Charon]: false,
+};
 
 export enum MatterState {
     Solid = 'solid',
@@ -109,10 +162,33 @@ export type MagneticDipole = {
     equatorialSurfaceFieldNanotesla: number;
 };
 
+/** One ring around a body, in its equatorial plane. */
+export type RingBand = {
+    /** Distance from the body's center to the ring's inner and outer edges, in kilometers. */
+    radiusKm: ValueRange;
+    /** CSS color. */
+    color: string;
+    /** From 0 (see-through) to 1, at the inner edge. */
+    opacity: number;
+} & PartialWithUndefined<{
+    /** Fades linearly from `opacity` at the inner edge to this at the outer edge. */
+    outerOpacity: number;
+    /**
+     * How much fine ringlets within the band vary its opacity and brightness, from 0 (smooth) to 1
+     * (from clear to twice as dense).
+     */
+    ringletContrast: number;
+}>;
+
 /** The small, always-loaded facts about a body that place it in the body tree and in space. */
 export type BodySummary = {
     id: BodyId;
     name: string;
+    /**
+     * Kokoro phonemes (misaki US notation) that `npm run build:pronunciations` in `@cosmos/scripts`
+     * speaks to make this body's name clip.
+     */
+    pronunciation: string;
     kind: BodyKind;
     radiusKm: number;
 } & PartialWithUndefined<{
@@ -120,6 +196,10 @@ export type BodySummary = {
     parentId: BodyId;
     orbit: OrbitElements;
     rotation: BodyRotation;
+    /** From the inside out, without overlaps. Gaps between bands are empty. */
+    rings: ReadonlyArray<Readonly<RingBand>>;
+    /** Every moon known to orbit it, including the many too small to be in this catalog. */
+    knownMoonCount: number;
 }>;
 
 /** Everything else about a body, loaded only when it's shown up close. */

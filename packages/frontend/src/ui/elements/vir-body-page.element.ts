@@ -10,15 +10,18 @@ import {
     onResize,
     unsafeCSS,
 } from 'element-vir';
+import {lucideIcons, ViraButton, ViraColorVariant, ViraSize} from 'vira';
 import {
     type BodyDetails,
     type BodyLayer,
     type BodySummary,
-    isCutOpenByBodyKind,
+    isCutOpenByBodyId,
     LayerRegion,
     MatterState,
     type ValueRange,
 } from '../../data/celestial-body.js';
+import {createStaticFileUrl} from '../frontend-state/frontend-state.js';
+import {playPronunciation} from '../pronunciation.js';
 import {type BodyPick, type SceneReadout} from '../three/cosmos-scene.js';
 import {formatTimeSpeed, getTimeSpeed} from '../time-speed.js';
 import {VirSlider} from './vir-slider.element.js';
@@ -177,6 +180,22 @@ export const VirBodyPage = defineElement<
                 }
             }
 
+            .name-row {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+
+                & h1 {
+                    min-width: 0;
+                    hyphens: auto;
+                    overflow-wrap: anywhere;
+                }
+
+                & ${ViraButton} {
+                    flex-shrink: 0;
+                }
+            }
+
             .sizer {
                 position: absolute;
                 inset: 0;
@@ -281,7 +300,7 @@ export const VirBodyPage = defineElement<
     },
     render({inputs, state, updateState, dispatch, events}) {
         const details = inputs.details;
-        const isCutOpen = isCutOpenByBodyKind[inputs.summary.kind];
+        const isCutOpen = isCutOpenByBodyId[inputs.summary.id];
         const selectedLayer = isCutOpen
             ? details?.layers.find((layer) => layer.id === inputs.selectedLayerId)
             : undefined;
@@ -376,6 +395,12 @@ export const VirBodyPage = defineElement<
                 });
         }
 
+        function sayName() {
+            void playPronunciation(
+                createStaticFileUrl('pronunciations', `${inputs.summary.id}.mp3`),
+            );
+        }
+
         function renderReadout(readout: Readonly<SceneReadout>) {
             return html`
                 <table>
@@ -421,7 +446,46 @@ export const VirBodyPage = defineElement<
                       `
                     : nothing}
                 <div class="overlay info">
-                    <h1>${inputs.summary.name}</h1>
+                    <div class="name-row">
+                        <${ViraButton.assign({
+                            icon: lucideIcons.Speech,
+                            color: ViraColorVariant.Neutral,
+                            buttonSize: ViraSize.Large,
+                        })}
+                            title="Say the name"
+                            ${
+                                /**
+                                 * `pointerup` instead of `click`: touch browsers withhold a tap's
+                                 * `click` in some states, such as while another touch is down, but
+                                 * still send its `pointerup`.
+                                 */
+                                listen('pointerup', (event) => {
+                                    if (event.button === 0) {
+                                        sayName();
+                                    }
+                                })
+                            }
+                            ${
+                                /** Keyboard activation is the only `click` whose `detail` is `0`. */
+                                listen('click', (event) => {
+                                    if (!event.detail) {
+                                        sayName();
+                                    }
+                                })
+                            }
+                        ></${ViraButton}>
+                        <h1>${inputs.summary.name}</h1>
+                    </div>
+                    ${inputs.summary.knownMoonCount == undefined
+                        ? nothing
+                        : html`
+                              <table>
+                                  <tr>
+                                      <th>Known moons</th>
+                                      <td>${inputs.summary.knownMoonCount}</td>
+                                  </tr>
+                              </table>
+                          `}
                     ${details
                         ? html`
                               ${details.description.split('\n\n').map((paragraph) => {

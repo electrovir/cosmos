@@ -1,6 +1,6 @@
 // cspell:words fract
 import {assertWrap} from '@augment-vir/assert';
-import {createArray} from '@augment-vir/common';
+import {createArray, randomInteger} from '@augment-vir/common';
 import {
     AdditiveBlending,
     BufferAttribute,
@@ -24,6 +24,7 @@ import {
     WebGLRenderTarget,
 } from 'three';
 import {latitudeLongitudeToDirection} from '../../physics/frames.js';
+import {equirectangularSampleShaderChunk} from './equirectangular-map-shader.js';
 import {noiseShaderChunk} from './noise-shader-chunk.js';
 
 /** How many active regions (sunspot groups with loops above them) can show at once. */
@@ -152,18 +153,32 @@ const photosphereBakeFragmentShader = /* glsl */ `
     }
 `;
 
+/**
+ * The photosphere's color for its heat, and how it darkens and reddens toward the limb, where the
+ * view looks through more of its cooler upper layer.
+ */
+const photosphereShadingShaderChunk = /* glsl */ `
+    /** Deep orange through yellow to white. */
+    vec3 photosphereColor(float heat) {
+        vec3 color = mix(vec3(0.7, 0.2, 0.02), vec3(1.0, 0.72, 0.22), smoothstep(0.45, 0.9, heat));
+        return mix(color, vec3(1.0, 0.95, 0.75), smoothstep(0.88, 1.05, heat));
+    }
+
+    vec3 darkenLimb(vec3 color, float facing) {
+        return color * (1.0 - 0.62 * (1.0 - pow(facing, 0.8))) * vec3(1.0, 0.8 + 0.2 * facing, 0.55 + 0.45 * facing);
+    }
+`;
+
 const photosphereVertexShader = /* glsl */ `
     #include <common>
     #include <logdepthbuf_pars_vertex>
     #include <clipping_planes_pars_vertex>
 
-    varying vec2 vUv;
     varying vec3 vDirection;
     varying vec3 vNormal;
     varying vec3 vViewDirection;
 
     void main() {
-        vUv = uv;
         vDirection = normalize(position);
         vec4 worldPosition = modelMatrix * vec4(position, 1.0);
         vNormal = normalize(mat3(modelMatrix) * normal);
@@ -193,26 +208,22 @@ const photosphereFragmentShader = /* glsl */ `
     uniform vec3 layerSelections;
     uniform float glow;
 
-    varying vec2 vUv;
     varying vec3 vDirection;
     varying vec3 vNormal;
     varying vec3 vViewDirection;
 
     ${noiseShaderChunk}
     ${layerSelectionShaderChunk}
+    ${photosphereShadingShaderChunk}
 
-    /** Deep orange through yellow to white. */
-    vec3 photosphereColor(float heat) {
-        vec3 color = mix(vec3(0.7, 0.2, 0.02), vec3(1.0, 0.72, 0.22), smoothstep(0.45, 0.9, heat));
-        return mix(color, vec3(1.0, 0.95, 0.75), smoothstep(0.88, 1.05, heat));
-    }
+    ${equirectangularSampleShaderChunk}
 
     void main() {
         #include <clipping_planes_fragment>
         #include <logdepthbuf_fragment>
         vec3 direction = normalize(vDirection);
         float facing = clamp(dot(normalize(vNormal), normalize(vViewDirection)), 0.0, 1.0);
-        vec4 baked = mix(texture2D(bakedPrevious, vUv), texture2D(bakedNext, vUv), bakeBlend);
+        vec4 baked = mix(sampleEquirectangular(bakedPrevious, direction), sampleEquirectangular(bakedNext, direction), bakeBlend);
         float heat = HEAT_MIN + HEAT_SPAN * baked.r;
 
         vec3 color = photosphereColor(heat);
@@ -220,7 +231,7 @@ const photosphereFragmentShader = /* glsl */ `
         color = mix(color, vec3(0.16, 0.05, 0.02), baked.g);
         /** Faculae are hard to see face on and stand out near the limb. */
         color += vec3(0.35, 0.28, 0.18) * baked.a * (0.2 + 1.2 * (1.0 - facing));
-        color *= (1.0 - 0.62 * (1.0 - pow(facing, 0.8))) * vec3(1.0, 0.8 + 0.2 * facing, 0.55 + 0.45 * facing);
+        color = darkenLimb(color, facing);
 
         float flareGap = length(direction - flarePosition);
         float flare = flareIntensity * exp(-flareGap * flareGap / 0.0006);
@@ -247,7 +258,11 @@ const limbCutShaderChunk = /* glsl */ `
         uniform vec4 clippingPlanes[NUM_CLIPPING_PLANES];
     #endif
 
-    /** From 0 outside the cut to 1 inside, blurred across the given share of the Sun's radius. */
+    /**
+     * From 0 outside the cut to 1 inside, faded across the given share of the limb's radius just
+     * outside the cut so none of the fade spills over it. Up close the limb shrinks toward the point
+     * below the camera, so a fade sized to the Sun's radius would reach far across the cut.
+     */
     float getLimbCut(vec3 center, vec2 offset, float softness) {
         #if NUM_CLIPPING_PLANES > 0
             float centerDistance = length(center);
@@ -255,12 +270,13 @@ const limbCutShaderChunk = /* glsl */ `
             vec3 across = vec3(normalize(offset), 0.0);
             across = normalize(across - toCamera * dot(across, toCamera));
             float ratio = min(drawnRadius / centerDistance, 1.0);
-            vec3 limb = center + toCamera * drawnRadius * ratio + across * drawnRadius * sqrt(1.0 - ratio * ratio);
-            float blur = softness * drawnRadius;
+            float limbRingRadius = drawnRadius * sqrt(1.0 - ratio * ratio);
+            vec3 limb = center + toCamera * drawnRadius * ratio + across * limbRingRadius;
+            float blur = softness * limbRingRadius;
             float cut = 1.0;
             #pragma unroll_loop_start
             for (int i = 0; i < NUM_CLIPPING_PLANES; i++) {
-                cut *= smoothstep(-blur, blur, dot(-limb, clippingPlanes[i].xyz) - clippingPlanes[i].w);
+                cut *= smoothstep(-blur, 0.0, dot(-limb, clippingPlanes[i].xyz) - clippingPlanes[i].w);
             }
             #pragma unroll_loop_end
             return cut;
@@ -572,6 +588,37 @@ function createLoopGeometry() {
  * Everything that makes the Sun look alive: a boiling surface with sunspots, loops of plasma
  * arching over each active region, flares that flash and throw a loop off, and the corona.
  */
+/**
+ * The photosphere in its average color, with the same darker limb, for a Sun drawn too small to
+ * show its granules. Much cheaper than `createSunModel`, which bakes the boiling surface every
+ * frame.
+ */
+export function createDistantSunMaterial() {
+    return new ShaderMaterial({
+        vertexShader: photosphereVertexShader,
+        fragmentShader: /* glsl */ `
+            #include <common>
+            #include <logdepthbuf_pars_fragment>
+
+            varying vec3 vNormal;
+            varying vec3 vViewDirection;
+
+            ${photosphereShadingShaderChunk}
+
+            void main() {
+                #include <logdepthbuf_fragment>
+                float facing = clamp(dot(normalize(vNormal), normalize(vViewDirection)), 0.0, 1.0);
+                /** Colors are picked as they should show on screen, so they skip the color space change. */
+                gl_FragColor = vec4(darkenLimb(photosphereColor(AVERAGE_HEAT), facing), 1.0);
+            }
+        `,
+        defines: {
+            /** About what the photosphere's granules and churn average out to. */
+            AVERAGE_HEAT: '0.76',
+        },
+    });
+}
+
 export function createSunModel({radiusKm}: Readonly<{radiusKm: number}>) {
     const group = new Group();
     /** The region arrays are filled by `update`, before the first frame draws. */
@@ -865,9 +912,9 @@ export function createSunModel({radiusKm}: Readonly<{radiusKm: number}>) {
             uniforms.regionCenters.value = regions.map((region) => region.center);
             uniforms.regionAxes.value = regions.map((region) => region.axis);
             uniforms.regionSizes.value = regions.map((region) => region.size);
-            uniforms.regionProminences.value = regions.map((region) =>
-                region.isProminence ? 1 : 0,
-            );
+            uniforms.regionProminences.value = regions.map((region) => {
+                return region.isProminence ? 1 : 0;
+            });
 
             if (animationSeconds >= flare.nextSeconds) {
                 const candidates = regions
@@ -878,8 +925,20 @@ export function createSunModel({radiusKm}: Readonly<{radiusKm: number}>) {
                         };
                     })
                     .filter((candidate) => candidate.region.size > 0.02);
-                const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-                flare.nextSeconds = animationSeconds + 3 + Math.random() * 7;
+                const chosen =
+                    candidates[
+                        randomInteger({
+                            min: 0,
+                            max: candidates.length - 1,
+                        })
+                    ];
+                flare.nextSeconds =
+                    animationSeconds +
+                    randomInteger({
+                        min: 3000,
+                        max: 10_000,
+                    }) /
+                        1000;
                 if (chosen) {
                     flare.startSeconds = animationSeconds;
                     flare.region = chosen.index;

@@ -24,6 +24,7 @@ import {
     ShaderMaterial,
     Vector2,
     Vector3,
+    type WebGLRenderer,
 } from 'three';
 import {
     type BodyDetails,
@@ -44,7 +45,10 @@ import {
 import {type RadialScale, toDisplayRadius, toRealRadius} from '../../physics/radial-scale.js';
 import {sampleSurface} from '../../physics/surface-data.js';
 import {type BodyAssets} from './body-assets.js';
+import {sampleMapPerPixel} from './equirectangular-map-shader.js';
 import {noiseShaderChunk} from './noise-shader-chunk.js';
+import {createProgressiveBake} from './progressive-bake.js';
+import {createRingMesh} from './ring-model.js';
 
 /**
  * A full sphere, as a latitude and longitude grid so its vertices can follow the elevation data.
@@ -233,6 +237,9 @@ const cutFaceFragmentShader = /* glsl */ `
     uniform float selectedLayerIndex;
     uniform float glow;
     uniform float time;
+    uniform sampler2D bakedPrevious;
+    uniform sampler2D bakedNext;
+    uniform float bakeBlend;
 
     varying vec3 vBodyPosition;
     varying vec3 vCutPosition;
@@ -260,17 +267,16 @@ const cutFaceFragmentShader = /* glsl */ `
 
     /** Thin, cool plasma shimmers. Hot, dense plasma boils in bright cells with dark lanes. */
     vec3 plasmaColor(vec3 point, vec3 base, float heat) {
-        vec3 boil = vec3(fbm(point * 4.0 + vec3(time * 0.3)), fbm(point * 4.0 - vec3(time * 0.25)), 0.0);
-        float shimmer = fbm(point * 3.0 + boil + vec3(0.0, 0.0, time * 0.2));
-        vec3 cool = base * (0.75 + 0.35 * shimmer);
-        if (heat <= 0.0) {
-            return cool;
-        }
-        vec2 granules = cells(point * 10.0 + boil * 1.5, time * 0.8);
-        float bright = (1.0 - smoothstep(0.0, 0.7, granules.x)) * smoothstep(0.0, 0.12, granules.y - granules.x);
-        float flicker = 0.9 + 0.1 * simplexNoise(point * 30.0 + vec3(0.0, 0.0, time * 3.0));
+        vec2 uv = vec2(
+            sign(-point.z) * length(point.xz) / (2.0 * CUT_EXTENT) + 0.5,
+            point.y / (2.0 * CUT_EXTENT) + 0.5
+        );
+        vec3 baked = mix(texture2D(bakedPrevious, uv), texture2D(bakedNext, uv), bakeBlend).rgb;
+        vec3 cool = base * (0.75 + 0.35 * (baked.r * 2.0 - 1.0));
+        float bright = baked.g;
+        float flicker = 0.9 + 0.1 * (baked.b * 2.0 - 1.0);
         vec3 hot = base * (0.5 + 0.7 * bright) * flicker + vec3(0.25, 0.2, 0.1) * bright;
-        return mix(cool, hot, heat);
+        return mix(cool, hot, max(heat, 0.0));
     }
 
     /**
@@ -348,6 +354,34 @@ const cutFaceFragmentShader = /* glsl */ `
     }
 `;
 
+/**
+ * The plasma's noise is far too slow to run for every pixel of a cut face that fills the screen, so
+ * its shimmer, granules, and flicker are baked across both faces of the cut. The faces meet at the
+ * axis in the middle of the bake, so the noise runs on unbroken across it.
+ */
+const cutPlasmaBakeFragmentShader = /* glsl */ `
+    #include <common>
+
+    uniform float time;
+    uniform vec2 bakeSize;
+
+    ${noiseShaderChunk}
+
+    void main() {
+        vec2 uv = gl_FragCoord.xy / bakeSize;
+        float across = (uv.x * 2.0 - 1.0) * CUT_EXTENT;
+        float angle = sign(across) * CUT_HALF_ANGLE;
+        vec3 point = vec3(cos(angle) * abs(across), (uv.y * 2.0 - 1.0) * CUT_EXTENT, -sin(angle) * abs(across));
+
+        vec3 boil = vec3(fbm(point * 4.0 + vec3(time * 0.3)), fbm(point * 4.0 - vec3(time * 0.25)), 0.0);
+        float shimmer = fbm(point * 3.0 + boil + vec3(0.0, 0.0, time * 0.2));
+        vec2 granules = cells(point * 10.0 + boil * 1.5, time * 0.8);
+        float bright = (1.0 - smoothstep(0.0, 0.7, granules.x)) * smoothstep(0.0, 0.12, granules.y - granules.x);
+        float flicker = simplexNoise(point * 30.0 + vec3(0.0, 0.0, time * 3.0));
+        gl_FragColor = vec4(shimmer * 0.5 + 0.5, bright, flicker * 0.5 + 0.5, 1.0);
+    }
+`;
+
 export const atmosphereGlowVertexShader = /* glsl */ `
     #include <common>
     #include <logdepthbuf_pars_vertex>
@@ -418,6 +452,9 @@ function clampHeat(heat: number) {
 
 /** Half the angle between the cut's two faces. */
 const cutHalfAngleRadians = Math.PI / 4;
+/** How far the cut's faces reach, in the cut's radii. */
+const cutFaceExtent = 1.05;
+const cutPlasmaBakeSize = 1024;
 
 /**
  * The cut's two faces, as half-planes from the pole-to-pole axis out to `radius`, opening around
@@ -526,17 +563,19 @@ export function createLayeredBodyModel({
 
     const surfaceMaterial =
         customSurfaceMaterial ??
-        new MeshStandardMaterial({
-            map: assets.surfaceColor ?? null,
-            color: assets.surfaceColor
-                ? 0xff_ff_ff
-                : (details.layers.findLast((layer) => layer.region !== LayerRegion.Atmosphere)
-                      ?.color ?? 0xff_ff_ff),
-            roughness: 1,
-            metalness: 0,
-            clippingPlanes: cutPlanes,
-            clipIntersection: true,
-        });
+        sampleMapPerPixel(
+            new MeshStandardMaterial({
+                map: assets.surfaceColor ?? null,
+                color: assets.surfaceColor
+                    ? 0xff_ff_ff
+                    : (details.layers.findLast((layer) => layer.region !== LayerRegion.Atmosphere)
+                          ?.color ?? 0xff_ff_ff),
+                roughness: 1,
+                metalness: 0,
+                clippingPlanes: cutPlanes,
+                clipIntersection: true,
+            }),
+        );
     const surface = new Mesh(
         createSphereGeometry({
             ...surfaceGrid,
@@ -610,11 +649,30 @@ export function createLayeredBodyModel({
         atmosphereGlowMaterial,
     );
     atmosphereGlow.renderOrder = 2;
-    /** The glow is daylight scattered by air, which a plasma atmosphere doesn't do. */
-    atmosphereGlow.visible = details.layers.some(
-        (layer) => layer.region === LayerRegion.Atmosphere && layer.state === MatterState.Gas,
-    );
+    /**
+     * The glow is daylight scattered by air, which a plasma atmosphere doesn't do, and air as thin
+     * as Pluto's scatters too little to see from afar.
+     */
+    atmosphereGlow.visible = details.layers.some((layer) => {
+        return (
+            layer.region === LayerRegion.Atmosphere &&
+            layer.state === MatterState.Gas &&
+            (layer.pressureGigapascals?.max ?? Infinity) >= 0.0000001
+        );
+    });
     bodyGroup.add(atmosphereGlow);
+
+    const rings = summary.rings
+        ? createRingMesh({
+              rings: summary.rings,
+              bodyRadiusKm: summary.radiusKm,
+              clippingPlanes: cutPlanes,
+          })
+        : undefined;
+    if (rings) {
+        rings.mesh.renderOrder = 3;
+        bodyGroup.add(rings.mesh);
+    }
 
     /** The exosphere is far too thin to show in the cut, and would dwarf everything else. */
     const cutLayers = details.layers.filter((layer) => {
@@ -705,7 +763,21 @@ export function createLayeredBodyModel({
     }
 
     const cutRadius = Math.max(...typicalRanges.map((range) => range.y));
+    const cutFaceDefines = {
+        CUT_EXTENT: cutFaceExtent.toFixed(2),
+        CUT_HALF_ANGLE: cutHalfAngleRadians.toFixed(6),
+    };
+    const cutPlasmaBake = cutLayers.some((layer) => layer.state === MatterState.Plasma)
+        ? createProgressiveBake({
+              width: cutPlasmaBakeSize,
+              height: cutPlasmaBakeSize,
+              periodSeconds: 0.5,
+              fragmentShader: cutPlasmaBakeFragmentShader,
+              defines: cutFaceDefines,
+          })
+        : undefined;
     const cutFaceUniforms = {
+        ...cutPlasmaBake?.outputUniforms,
         layerRanges: {
             value: cutGridTexture,
         },
@@ -748,6 +820,7 @@ export function createLayeredBodyModel({
         fragmentShader: cutFaceFragmentShader,
         uniforms: cutFaceUniforms,
         defines: {
+            ...cutFaceDefines,
             LAYER_COUNT: cutLayers.length,
             GRID_COLUMNS: cutGrid.columns.toFixed(1),
             GRID_ROWS: cutGrid.rows.toFixed(1),
@@ -757,7 +830,7 @@ export function createLayeredBodyModel({
         },
         side: DoubleSide,
     });
-    const cutFaceMesh = new Mesh(createCutFaceGeometry(cutRadius * 1.05), cutFaceMaterial);
+    const cutFaceMesh = new Mesh(createCutFaceGeometry(cutRadius * cutFaceExtent), cutFaceMaterial);
     bodyGroup.add(cutFaceMesh);
 
     const raycaster = new Raycaster();
@@ -844,6 +917,7 @@ export function createLayeredBodyModel({
             animationSeconds,
             isCutOpen,
             scale,
+            renderer,
         }: Readonly<{
             /** In the body's frame. */
             towardSun: Readonly<Vector3>;
@@ -858,13 +932,19 @@ export function createLayeredBodyModel({
             isCutOpen: boolean;
             /** How many times larger than true size to draw the body, without its field or orbits. */
             scale: number;
+            /** Bakes the cut's plasma. */
+            renderer: WebGLRenderer;
         }>) {
             bodyGroup.scale.setScalar(scale);
             cutFaceUniforms.bodyScale.value = scale;
             cutFaceMesh.visible = isCutOpen;
             atmosphereGlowUniforms.towardSun.value.copy(towardSun);
+            rings?.update({
+                towardSun,
+            });
             cutFaceUniforms.glow.value = glow;
             cutFaceUniforms.time.value = animationSeconds;
+            cutPlasmaBake?.update(animationSeconds, renderer);
 
             /** The cut opens toward the Sun's longitude, so the body turns through it. */
             const sunLongitudeRadians = Math.atan2(-towardSun.z, towardSun.x);
@@ -910,6 +990,8 @@ export function createLayeredBodyModel({
                 material.dispose();
             });
             cutGridTexture.dispose();
+            cutPlasmaBake?.dispose();
+            rings?.dispose();
         },
     };
 }
