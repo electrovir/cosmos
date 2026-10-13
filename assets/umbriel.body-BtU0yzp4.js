@@ -1,0 +1,3 @@
+import{i as e,r as t,t as n}from"./celestial-body-CMjPm-Bs.js";var r={id:n.Umbriel,description:[`The darkest of Uranus' large moons, with an old surface covered in craters.`,`A bright ring called Wunda sits on the floor of a crater near its equator. No one knows what it is made of.`].join(`
+
+`),layers:[{id:`interior`,name:`Interior`,region:t.Interior,state:e.Solid,color:`#6c6a68`,radiusKm:{min:0,max:584.7},composition:`Ice and rock`,description:`About half ice and half rock, under a dark coating.`}]};export{r as default};

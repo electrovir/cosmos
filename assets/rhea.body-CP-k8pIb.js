@@ -1,0 +1,3 @@
+import{i as e,r as t,t as n}from"./celestial-body-CMjPm-Bs.js";var r={id:n.Rhea,description:[`Saturn's second largest moon, an icy ball heavily cratered on its leading side.`,`Its ice and rock may never have fully separated, leaving it much the same all the way through.`].join(`
+
+`),layers:[{id:`interior`,name:`Interior`,region:t.Interior,state:e.Solid,color:`#c4c0b8`,radiusKm:{min:0,max:763.8},composition:`Ice, with rock mixed in`,description:`Ice and rock that may never have fully settled apart.`}]};export{r as default};

@@ -1,0 +1,3 @@
+import{i as e,r as t,t as n}from"./celestial-body-CMjPm-Bs.js";var r={id:n.Iapetus,description:[`A two-toned moon. One side is as dark as coal and the other as bright as snow.`,`A ridge up to 20 kilometers high runs along much of its equator, giving it the shape of a walnut.`].join(`
+
+`),layers:[{id:`interior`,name:`Interior`,region:t.Interior,state:e.Solid,color:`#9a9080`,radiusKm:{min:0,max:734.5},composition:`Ice, with some rock`,description:`Mostly ice. The dark coating on its leading side is only a thin layer of dust.`}]};export{r as default};

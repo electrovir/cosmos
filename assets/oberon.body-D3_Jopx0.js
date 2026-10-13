@@ -1,0 +1,3 @@
+import{i as e,r as t,t as n}from"./celestial-body-CMjPm-Bs.js";var r={id:n.Oberon,description:[`Uranus' outermost large moon, old and heavily cratered, with dark material on some crater floors.`,`Voyager 2 spotted a mountain about 11 kilometers high along its edge.`].join(`
+
+`),layers:[{id:`interior`,name:`Interior`,region:t.Interior,state:e.Solid,color:`#988c84`,radiusKm:{min:0,max:761.4},composition:`Ice and rock`,description:`About half ice and half rock.`}]};export{r as default};
