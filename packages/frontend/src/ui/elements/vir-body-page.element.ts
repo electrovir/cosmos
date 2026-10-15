@@ -10,7 +10,14 @@ import {
     onResize,
     unsafeCSS,
 } from 'element-vir';
-import {lucideIcons, ViraButton, ViraColorVariant, ViraSize} from 'vira';
+import {
+    createSizedIcon,
+    lucideIcons,
+    ViraButton,
+    ViraColorVariant,
+    viraIconCssVars,
+    ViraSize,
+} from 'vira';
 import {
     type BodyDetails,
     type BodyLayer,
@@ -193,6 +200,7 @@ export const VirBodyPage = defineElement<
 
                 & ${ViraButton} {
                     flex-shrink: 0;
+                    ${viraIconCssVars['vira-icon-stroke-width'].name}: 1.5px;
                 }
             }
 
@@ -448,7 +456,7 @@ export const VirBodyPage = defineElement<
                 <div class="overlay info">
                     <div class="name-row">
                         <${ViraButton.assign({
-                            icon: lucideIcons.Speech,
+                            icon: createSizedIcon(lucideIcons.Speech, 24),
                             color: ViraColorVariant.Neutral,
                             buttonSize: ViraSize.Large,
                         })}

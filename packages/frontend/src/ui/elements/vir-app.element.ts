@@ -1,5 +1,5 @@
 import {asyncProp, css, defineElement, html, listen, nothing} from 'element-vir';
-import {lucideIcons, ViraButton, ViraColorVariant, ViraSize, viraTheme} from 'vira';
+import {lucideIcons, ViraButton, ViraColorVariant, ViraLink, ViraSize, viraTheme} from 'vira';
 import {bodyCatalog, loadBodyDetails} from '../../data/body-catalog.js';
 import {type BodyId} from '../../data/celestial-body.js';
 import {defaultFieldOpacity} from '../field-opacity.js';
@@ -62,6 +62,12 @@ export const VirApp = defineElement()({
             margin: 16px;
             display: flex;
             gap: 8px;
+        }
+
+        :host > ${ViraLink} {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
         }
 
         .time-panel {
@@ -151,6 +157,24 @@ export const VirApp = defineElement()({
             ? layerId
             : undefined;
         const isPhone = frontendState.value.screenSize === ScreenSize.Phone;
+        /** Phones show a bottom panel over the bottom-left corner. */
+        const hubLink = html`
+            <${ViraLink.assign({
+                link: {
+                    url: 'https://electrovir.github.io/edu/',
+                    newTab: false,
+                },
+                disableLinkStyles: true,
+            })}>
+                <${ViraButton.assign({
+                    icon: lucideIcons.List,
+                    color: ViraColorVariant.Neutral,
+                    buttonSize: ViraSize.Large,
+                })}
+                    title="More apps"
+                ></${ViraButton}>
+            </${ViraLink}>
+        `;
 
         function selectLayer(newLayerId: string | undefined) {
             frontendState?.value.router.setRoute(
@@ -236,7 +260,9 @@ export const VirApp = defineElement()({
                           ></${ViraButton}>
                       `
                     : nothing}
+                ${isPhone ? hubLink : nothing}
             </div>
+            ${isPhone ? nothing : hubLink}
             ${isCloseUp
                 ? html`
                       <${VirBodyPage.assign({

@@ -1,4 +1,4 @@
-// cspell:words basemap colourspace mdir usgs magellan mozjpeg bitpix naxis mdis
+// cspell:words antuñano basemap planetocentric colourspace mdir usgs magellan mozjpeg bitpix naxis mdis
 import {awaitedForEach, createArray, getObjectTypedEntries, log} from '@augment-vir/common';
 import {BodyId} from '@cosmos/frontend/src/data/celestial-body.js';
 import {
@@ -298,6 +298,138 @@ async function openFitsColorMap(source: Readonly<DownloadSource>) {
             height,
             channels: 3,
         },
+    });
+}
+
+/**
+ * Blends Cassini's June 2013 polar stereographic view of Saturn's north polar hexagon (the left
+ * half of NASA's PIA21611) over the north of a finished Saturn map, whose own data stops short of
+ * the pole. The view's colors are scaled to match the map where the two overlap.
+ */
+async function overlaySaturnNorthPole(map: Sharp) {
+    const {data, info} = await map
+        .resize(surfaceMapSize.width, surfaceMapSize.height)
+        .removeAlpha()
+        .toColourspace('srgb')
+        .raw()
+        .toBuffer({
+            resolveWithObject: true,
+        });
+    const view = await sharp(
+        await download({
+            dirName: 'pia21611',
+            fileName: 'PIA21611.tif',
+            url: 'https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia21/pia21611/PIA21611.tif',
+        }),
+    )
+        .removeAlpha()
+        .toColourspace('srgb')
+        .raw()
+        .toBuffer({
+            resolveWithObject: true,
+        });
+    /**
+     * PIA21611's stated 25 km per pixel would make the hexagon wider than its frame, so the scale
+     * comes from the hexagon instead: its edge, about 385 pixels from the polar vortex, follows the
+     * jet at 75.8°N planetocentric (Antuñano et al. 2015, doi:10.1002/2014JE004709). Near the pole,
+     * stereographic distance is close to proportional to the angle from the pole.
+     */
+    const viewPole = {
+        x: 517,
+        y: 519,
+    };
+    const viewPixelsPerDegree = 385 / (90 - 75.8);
+    /** The caption doesn't give the view's longitudes, so its top is put at 0°. */
+    function readView({
+        latitude,
+        longitude,
+        channel,
+    }: Readonly<{
+        latitude: number;
+        longitude: number;
+        channel: number;
+    }>) {
+        const distance = (90 - latitude) * viewPixelsPerDegree;
+        /** Seen from above the north pole, east is counterclockwise. */
+        const angle = (longitude * Math.PI) / 180;
+        const x = viewPole.x - distance * Math.sin(angle);
+        const y = viewPole.y - distance * Math.cos(angle);
+        const left = Math.floor(x);
+        const top = Math.floor(y);
+        function readPixel({column, row}: Readonly<{column: number; row: number}>) {
+            return view.data[(row * view.info.width + column) * view.info.channels + channel] ?? 0;
+        }
+        const topValue =
+            readPixel({
+                column: left,
+                row: top,
+            }) *
+                (left + 1 - x) +
+            readPixel({
+                column: left + 1,
+                row: top,
+            }) *
+                (x - left);
+        const bottomValue =
+            readPixel({
+                column: left,
+                row: top + 1,
+            }) *
+                (left + 1 - x) +
+            readPixel({
+                column: left + 1,
+                row: top + 1,
+            }) *
+                (x - left);
+        return topValue * (top + 1 - y) + bottomValue * (y - top);
+    }
+    const blendStartLatitude = 72;
+    const blendEndLatitude = 74;
+    const rowCount = Math.ceil(((90 - blendStartLatitude) / 180) * info.height);
+    const pixels = createArray(rowCount * info.width, (pixel) => {
+        const row = Math.floor(pixel / info.width);
+        return {
+            index: pixel * info.channels,
+            latitude: 90 - ((row + 0.5) / info.height) * 180,
+            longitude: (((pixel % info.width) + 0.5) / info.width) * 360 - 180,
+        };
+    });
+    const overlap = pixels.filter(({latitude}) => latitude < blendEndLatitude);
+    const gains = createArray(info.channels, (channel) => {
+        const mapSum = overlap.reduce((sum, {index}) => sum + (data[index + channel] ?? 0), 0);
+        const viewSum = overlap.reduce((sum, {latitude, longitude}) => {
+            return (
+                sum +
+                readView({
+                    latitude,
+                    longitude,
+                    channel,
+                })
+            );
+        }, 0);
+        return mapSum / viewSum;
+    });
+    const blended = data.map((value, index) => {
+        const pixel = pixels[Math.floor(index / info.channels)];
+        if (!pixel) {
+            return value;
+        }
+        const channel = index % info.channels;
+        const progress = Math.min(
+            1,
+            (pixel.latitude - blendStartLatitude) / (blendEndLatitude - blendStartLatitude),
+        );
+        const viewShare = progress * progress * (3 - 2 * progress);
+        const viewValue =
+            (gains[channel] ?? 1) *
+            readView({
+                ...pixel,
+                channel,
+            });
+        return Math.min(255, Math.round(viewValue * viewShare + value * (1 - viewShare)));
+    });
+    return sharp(blended, {
+        raw: info,
     });
 }
 
@@ -647,7 +779,7 @@ const surfaceMapLoaders: Record<SurfaceMapBodyId, () => Promise<Sharp>> = {
     },
     /**
      * Cassini's August 2011 true color map, its unseen poles and ring shadow filled in, with its
-     * faint bands strengthened.
+     * faint bands strengthened and its north polar hexagon from a 2013 view.
      */
     async [BodyId.Saturn]() {
         const fitsMap = await openFitsColorMap({
@@ -675,25 +807,27 @@ const surfaceMapLoaders: Record<SurfaceMapBodyId, () => Promise<Sharp>> = {
             .toBuffer({
                 resolveWithObject: true,
             });
-        return (
-            await fillUnseen(
-                await centerPrimeMeridian(
-                    sharp(resized.data, {
-                        raw: resized.info,
-                    }),
-                ),
-            )
-        ).linear(
-            [
-                2.2,
-                2.2,
-                2.2,
-            ],
-            [
-                -286,
-                -252,
-                -199,
-            ],
+        return await overlaySaturnNorthPole(
+            (
+                await fillUnseen(
+                    await centerPrimeMeridian(
+                        sharp(resized.data, {
+                            raw: resized.info,
+                        }),
+                    ),
+                )
+            ).linear(
+                [
+                    2.2,
+                    2.2,
+                    2.2,
+                ],
+                [
+                    -286,
+                    -252,
+                    -199,
+                ],
+            ),
         );
     },
     async [BodyId.Mimas]() {

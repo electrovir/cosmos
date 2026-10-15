@@ -251,13 +251,52 @@ function setOrbitLinePoints({
 /** Earth's smallest size across, as a share of the view's height. */
 const earthMinHeightShare = 0.05;
 
+const outerPlanetIds: ReadonlyArray<BodyId> = [
+    BodyId.Jupiter,
+    BodyId.Saturn,
+    BodyId.Uranus,
+    BodyId.Neptune,
+];
+
 /**
- * The inner planets keep their true sizes relative to Earth when enlarged. The giants are too big
- * for that, since sized against Earth they would fill the view.
+ * Planets that keep their true sizes relative to each other when enlarged, each group sized from
+ * its reference planet. Sized together, the giants would dwarf the inner planets, and Pluto would
+ * vanish beside the giants.
  */
-function getInnerPlanetMinHeightShare(bodyId: BodyId) {
+const planetGroups: ReadonlyArray<
+    Readonly<{
+        referenceId: BodyId;
+        /** The reference planet's smallest size across, as a share of the view's height. */
+        referenceMinHeightShare: number;
+        bodyIds: ReadonlyArray<BodyId>;
+    }>
+> = [
+    {
+        referenceId: BodyId.Earth,
+        referenceMinHeightShare: earthMinHeightShare,
+        bodyIds: [
+            BodyId.Mercury,
+            BodyId.Venus,
+            BodyId.Earth,
+            BodyId.Mars,
+        ],
+    },
+    {
+        referenceId: BodyId.Jupiter,
+        referenceMinHeightShare: 0.04,
+        bodyIds: outerPlanetIds,
+    },
+];
+
+function getPlanetGroup(bodyId: BodyId) {
+    return planetGroups.find((group) => group.bodyIds.includes(bodyId));
+}
+
+function getPlanetMinHeightShare(bodyId: BodyId) {
+    const group = assertWrap.isDefined(getPlanetGroup(bodyId));
     return (
-        (earthMinHeightShare * bodyCatalog[bodyId].radiusKm) / bodyCatalog[BodyId.Earth].radiusKm
+        (group.referenceMinHeightShare * bodyCatalog[bodyId].radiusKm) /
+        bodyCatalog[group.referenceId].radiusKm
     );
 }
 
@@ -300,19 +339,19 @@ const companionLooks: Readonly<
     },
     [BodyId.Mercury]: {
         color: 0x9b_92_8a,
-        minHeightShare: getInnerPlanetMinHeightShare(BodyId.Mercury),
+        minHeightShare: getPlanetMinHeightShare(BodyId.Mercury),
         isSelfLit: false,
         atmosphereGlowHeightKm: undefined,
     },
     [BodyId.Venus]: {
         color: 0xe8_d8_b0,
-        minHeightShare: getInnerPlanetMinHeightShare(BodyId.Venus),
+        minHeightShare: getPlanetMinHeightShare(BodyId.Venus),
         isSelfLit: false,
         atmosphereGlowHeightKm: 250,
     },
     [BodyId.Mars]: {
         color: 0xc0_60_38,
-        minHeightShare: getInnerPlanetMinHeightShare(BodyId.Mars),
+        minHeightShare: getPlanetMinHeightShare(BodyId.Mars),
         isSelfLit: false,
         atmosphereGlowHeightKm: 200,
     },
@@ -330,7 +369,7 @@ const companionLooks: Readonly<
     },
     [BodyId.Jupiter]: {
         color: 0xd8_b9_8c,
-        minHeightShare: 0.028,
+        minHeightShare: getPlanetMinHeightShare(BodyId.Jupiter),
         isSelfLit: false,
         atmosphereGlowHeightKm: 1000,
     },
@@ -360,7 +399,7 @@ const companionLooks: Readonly<
     },
     [BodyId.Saturn]: {
         color: 0xe3_cf_9a,
-        minHeightShare: 0.028,
+        minHeightShare: getPlanetMinHeightShare(BodyId.Saturn),
         isSelfLit: false,
         atmosphereGlowHeightKm: 1000,
     },
@@ -408,7 +447,7 @@ const companionLooks: Readonly<
     },
     [BodyId.Uranus]: {
         color: 0x9f_d8_e0,
-        minHeightShare: 0.024,
+        minHeightShare: getPlanetMinHeightShare(BodyId.Uranus),
         isSelfLit: false,
         atmosphereGlowHeightKm: 1000,
     },
@@ -444,7 +483,7 @@ const companionLooks: Readonly<
     },
     [BodyId.Neptune]: {
         color: 0x4a_6f_d8,
-        minHeightShare: 0.024,
+        minHeightShare: getPlanetMinHeightShare(BodyId.Neptune),
         isSelfLit: false,
         atmosphereGlowHeightKm: 1000,
     },
@@ -456,7 +495,8 @@ const companionLooks: Readonly<
     },
     [BodyId.Pluto]: {
         color: 0xd8_c0_a8,
-        minHeightShare: 0.016,
+        /** Pluto is far smaller than every giant, so it never looks bigger than one. */
+        minHeightShare: Math.min(0.016, ...outerPlanetIds.map(getPlanetMinHeightShare)),
         isSelfLit: false,
         atmosphereGlowHeightKm: undefined,
     },
@@ -468,19 +508,12 @@ const companionLooks: Readonly<
     },
 };
 
-const innerPlanetIds: ReadonlyArray<BodyId> = [
-    BodyId.Mercury,
-    BodyId.Venus,
-    BodyId.Earth,
-    BodyId.Mars,
-];
-
 /**
- * How much to shrink every inner planet's `minHeightShare` together, so none passes its
+ * How much to shrink every planet in a group's `minHeightShare` together, so none passes its
  * `maxRadiusKm` while their sizes on screen keep the ratio of their true sizes. The smallest still
  * stays at least {@link shrunkMinHeightShare} of the view.
  */
-function getInnerPlanetShrink({
+function getPlanetGroupShrink({
     planets,
     cameraDistanceKm,
     viewHeightPerDistance,
@@ -877,42 +910,45 @@ export function createOrbitModel({focusedBodyId}: Readonly<{focusedBodyId: BodyI
                             : neighborGapKm * maxRadiusNeighborGapShare,
                 };
             });
-            const innerPlanetShrink = getInnerPlanetShrink({
-                planets: [
-                    ...companionSizes,
-                    {
-                        bodyId: focusedBodyId,
-                        minHeightShare: getBodyMinHeightShare(focusedBodyId),
-                        maxRadiusKm: focusedMaxRadiusKm,
-                    },
-                ].filter((planet) => innerPlanetIds.includes(planet.bodyId)),
-                cameraDistanceKm,
-                viewHeightPerDistance,
+            const planetGroupShrinks = planetGroups.map((group) => {
+                return getPlanetGroupShrink({
+                    planets: [
+                        ...companionSizes,
+                        {
+                            bodyId: focusedBodyId,
+                            minHeightShare: getBodyMinHeightShare(focusedBodyId),
+                            maxRadiusKm: focusedMaxRadiusKm,
+                        },
+                    ].filter((planet) => group.bodyIds.includes(planet.bodyId)),
+                    cameraDistanceKm,
+                    viewHeightPerDistance,
+                });
             });
+            function getShrink(bodyId: BodyId) {
+                const group = getPlanetGroup(bodyId);
+                return group ? planetGroupShrinks[planetGroups.indexOf(group)] : undefined;
+            }
             companionSizes.forEach((companion) => {
                 const parentId = bodyCatalog[companion.bodyId].parentId;
                 companion.mesh.visible =
                     !parentId ||
                     parentId === BodyId.Sun ||
                     cameraDistanceKm <= companion.neighborGapKm * companionHideDistanceRatio;
-                const isInnerPlanet = innerPlanetIds.includes(companion.bodyId);
+                const shrink = getShrink(companion.bodyId);
                 companion.mesh.scale.setScalar(
                     getMinSizeScale({
                         radiusKm: companion.radiusKm,
                         distanceKm: cameraDistanceKm,
                         viewHeightPerDistance,
-                        minHeightShare: isInnerPlanet
-                            ? companion.minHeightShare * innerPlanetShrink
-                            : companion.minHeightShare,
-                        maxRadiusKm: isInnerPlanet ? undefined : companion.maxRadiusKm,
+                        minHeightShare: companion.minHeightShare * (shrink ?? 1),
+                        maxRadiusKm: shrink == undefined ? companion.maxRadiusKm : undefined,
                     }),
                 );
             });
-            const isFocusedInnerPlanet = innerPlanetIds.includes(focusedBodyId);
-            state.focusedMaxRadiusKm = isFocusedInnerPlanet ? Infinity : focusedMaxRadiusKm;
+            const focusedShrink = getShrink(focusedBodyId);
+            state.focusedMaxRadiusKm = focusedShrink == undefined ? focusedMaxRadiusKm : Infinity;
             state.focusedMinHeightShare =
-                getBodyMinHeightShare(focusedBodyId) *
-                (isFocusedInnerPlanet ? innerPlanetShrink : 1);
+                getBodyMinHeightShare(focusedBodyId) * (focusedShrink ?? 1);
             const isSystemOverview = cameraDistanceKm >= systemOverviewMinCameraDistanceKm;
             const sunOffset = astronomyToScene(focusedPosition.clone().negate());
             otherOrbitLines.forEach((line) => {
