@@ -1,0 +1,3 @@
+import{i as e,r as t,t as n}from"./celestial-body-CMjPm-Bs.js";var r={id:n.Miranda,description:[`The smallest of Uranus' five large moons, with a patchwork surface of cliffs, grooves, and ridges unlike any other.`,`Its cliff Verona Rupes may be up to 20 kilometers high, the tallest known in the Solar System.`].join(`
+
+`),massKg:0x3782dace9d9000000,meanTemperatureKelvin:60,discovery:{year:1948,discoverer:`Gerard Kuiper`},layers:[{id:`interior`,name:`Interior`,region:t.Interior,state:e.Solid,color:`#a8a8a8`,radiusKm:{min:0,max:235.8},composition:`Ice and rock`,description:`Ice and rock that may have been jumbled as it froze, or by a giant impact.`}]};export{r as default};

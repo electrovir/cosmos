@@ -1,0 +1,3 @@
+import{i as e,r as t,t as n}from"./celestial-body-CMjPm-Bs.js";var r={id:n.Tethys,description:[`A moon made almost entirely of water ice, barely denser than water.`,`A huge crater, Odysseus, covers much of one side, and a canyon, Ithaca Chasma, runs three quarters of the way around it.`].join(`
+
+`),massKg:0x2178d70f9c14f00000,meanTemperatureKelvin:86,discovery:{year:1684,discoverer:`Giovanni Cassini`},layers:[{id:`ice`,name:`Ice`,region:t.Interior,state:e.Solid,color:`#dcdcd8`,radiusKm:{min:0,max:531.1},composition:`Water ice, with a little rock`,description:`Almost pure ice, all the way through.`}]};export{r as default};

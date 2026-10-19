@@ -1,0 +1,1 @@
+export{t as loadBodyAssets,n as loadSmallSurfaceColor,r as loadStarCatalog}from"./body-assets-D4xG1uD6.js";
