@@ -13,6 +13,12 @@ const enceladus: BodyDetails = {
         'A small moon covered in fresh ice, the most reflective world in the Solar System.',
         "Jets of water vapor and ice burst from cracks near its south pole, fed by a salty global ocean under the ice. The jets supply Saturn's faint E ring.",
     ].join('\n\n'),
+    massKg: 1.0802e20,
+    meanTemperatureKelvin: 75,
+    discovery: {
+        year: 1789,
+        discoverer: 'William Herschel',
+    },
     layers: [
         {
             id: 'core',

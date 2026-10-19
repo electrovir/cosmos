@@ -13,6 +13,12 @@ const dione: BodyDetails = {
         'An icy moon whose trailing side is streaked with bright cliffs of ice, hundreds of meters high.',
         "Cassini's measurements hint at a thin ocean deep under its ice, around a large rocky core.",
     ].join('\n\n'),
+    massKg: 1.0955e21,
+    meanTemperatureKelvin: 87,
+    discovery: {
+        year: 1684,
+        discoverer: 'Giovanni Cassini',
+    },
     layers: [
         {
             id: 'core',

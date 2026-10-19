@@ -1,4 +1,5 @@
 // cspell:words bridgmanite ferropericlase ringwoodite wadsleyite
+import {earthMassKg} from '../body-catalog.js';
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 import {CrustBoundary} from '../earth/earth-data-files.js';
 
@@ -13,6 +14,23 @@ const earth: BodyDetails = {
     id: BodyId.Earth,
     description:
         'The only planet known to have life. Its liquid outer core makes a magnetic field that shields the atmosphere from the solar wind.',
+    massKg: earthMassKg,
+    meanTemperatureKelvin: 288,
+    atmosphereGases: [
+        {
+            gas: 'N₂',
+            percent: 78.08,
+        },
+        {
+            gas: 'O₂',
+            percent: 20.95,
+        },
+        {
+            gas: 'Ar',
+            percent: 0.93,
+        },
+    ],
+    surfacePressureBar: 1.014,
     layers: [
         {
             id: 'inner-core',

@@ -7,6 +7,12 @@ const titania: BodyDetails = {
     id: BodyId.Titania,
     description:
         "Uranus' largest moon. Canyons over a thousand kilometers long cross it, cracked open as its insides froze and swelled.",
+    massKg: 3.4e21,
+    meanTemperatureKelvin: 70,
+    discovery: {
+        year: 1787,
+        discoverer: 'William Herschel',
+    },
     layers: [
         {
             id: 'interior',

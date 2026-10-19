@@ -13,6 +13,12 @@ const charon: BodyDetails = {
         "Pluto's largest moon, half as wide as Pluto. They are so close in size that they circle a point in the space between them, each always showing the other the same face.",
         'Its north pole is stained reddish by gas that escapes Pluto and freezes onto it.',
     ].join('\n\n'),
+    massKg: 1.586e21,
+    meanTemperatureKelvin: 53,
+    discovery: {
+        year: 1978,
+        discoverer: 'James Christy',
+    },
     layers: [
         {
             id: 'core',

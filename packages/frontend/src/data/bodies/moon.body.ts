@@ -10,6 +10,8 @@ const moon: BodyDetails = {
     id: BodyId.Moon,
     description:
         "Earth's only natural moon. It always shows Earth the same face, and its pull raises most of Earth's ocean tides.",
+    massKg: 7.346e22,
+    meanTemperatureKelvin: 220,
     layers: [
         {
             id: 'inner-core',

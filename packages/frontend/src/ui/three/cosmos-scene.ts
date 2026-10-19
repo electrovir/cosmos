@@ -370,7 +370,7 @@ export function createCosmosScene() {
         weather: Readonly<SolarWindState>;
         /** The wind's conditions with quick swings averaged out, so the field shape changes gently. */
         conditions: Readonly<SolarWindConditions>;
-        /** The Sun's longitude in the body's frame on the last frame, which the camera follows. */
+        /** The longitude of `towardFollowed` in the body's frame on the last frame. */
         sunLongitudeRadians: number | undefined;
         secondsSinceReadout: number;
         rightInsetPixels: number;
@@ -475,10 +475,10 @@ export function createCosmosScene() {
 
     function flyCamera({
         frameSeconds,
-        sunLongitudeRadians,
+        cutLongitudeRadians,
     }: Readonly<{
         frameSeconds: number;
-        sunLongitudeRadians: number | undefined;
+        cutLongitudeRadians: number | undefined;
     }>) {
         if (!current.cameraFlight) {
             return;
@@ -497,9 +497,9 @@ export function createCosmosScene() {
         const startDirection = flight.startPosition.clone().normalize();
         const closeUpLatitudeRadians = degreesToRadians(closeUpLatitudeDegrees);
         const endLongitudeRadians =
-            sunLongitudeRadians == undefined
+            cutLongitudeRadians == undefined
                 ? undefined
-                : sunLongitudeRadians + (current.view?.closeUpTurnFromCutRadians ?? 0);
+                : cutLongitudeRadians + (current.view?.closeUpTurnFromCutRadians ?? 0);
         const endDirection =
             flight.isToSunSide && endLongitudeRadians != undefined
                 ? new Vector3(
@@ -642,10 +642,10 @@ export function createCosmosScene() {
                     endDistanceKm,
                     isToSunSide: true,
                 });
-                const towardCut = getBodyFrame(current.summary)?.towardCut;
+                const towardFollowed = getBodyFrame(current.summary)?.towardFollowed;
                 /** The flight swings to the cut's side itself, so the first frame shouldn't. */
-                current.sunLongitudeRadians = towardCut
-                    ? Math.atan2(-towardCut.z, towardCut.x)
+                current.sunLongitudeRadians = towardFollowed
+                    ? Math.atan2(-towardFollowed.z, towardFollowed.x)
                     : undefined;
             } else {
                 camera.position.setLength(endDistanceKm);
@@ -681,20 +681,28 @@ export function createCosmosScene() {
         const sunPosition = summary.parentId
             ? astronomyToScene(bodyPosition.clone().negate()).applyQuaternion(toBodyFrame)
             : undefined;
+        /** The cut faces the Sun, or Earth for the Sun itself. */
+        const towardCut = astronomyToScene(
+            getBodyPosition({
+                bodyId: summary.parentId ? BodyId.Sun : BodyId.Earth,
+                daysSinceJ2000,
+            }).sub(bodyPosition),
+        )
+            .applyQuaternion(toBodyFrame)
+            .normalize();
         return {
             daysSinceJ2000,
             toBodyFrame,
             sunPosition,
             towardSun: sunPosition?.clone().normalize(),
-            /** The cut faces the Sun, or Earth for the Sun itself, and the camera follows it. */
-            towardCut: astronomyToScene(
-                getBodyPosition({
-                    bodyId: summary.parentId ? BodyId.Sun : BodyId.Earth,
-                    daysSinceJ2000,
-                }).sub(bodyPosition),
-            )
-                .applyQuaternion(toBodyFrame)
-                .normalize(),
+            towardCut,
+            /**
+             * The camera turns with this around the body's axis. A planet's camera follows the Sun.
+             * The Sun's camera holds still against the stars instead of following Earth around.
+             */
+            towardFollowed: summary.parentId
+                ? towardCut
+                : astronomyToScene(new Vector3(1, 0, 0)).applyQuaternion(toBodyFrame),
         };
     }
 
@@ -896,18 +904,20 @@ export function createCosmosScene() {
         const bodyFrame = current.summary ? getBodyFrame(current.summary) : undefined;
         const towardSun = bodyFrame?.towardSun;
         const towardCut = bodyFrame?.towardCut;
-        /**
-         * The camera turns with the cut (toward the Sun, or toward Earth for the Sun) around the
-         * body's axis, so the body spins beneath it while north stays up for the orbit controls.
-         */
-        const sunLongitudeRadians = towardCut ? Math.atan2(-towardCut.z, towardCut.x) : undefined;
+        const towardFollowed = bodyFrame?.towardFollowed;
+        const cutLongitudeRadians = towardCut ? Math.atan2(-towardCut.z, towardCut.x) : undefined;
+        /** The body spins beneath the camera while north stays up for the orbit controls. */
+        const sunLongitudeRadians = towardFollowed
+            ? Math.atan2(-towardFollowed.z, towardFollowed.x)
+            : undefined;
         /** On a body's first frame, the camera swings to the cut's side to look into it. */
-        if (sunLongitudeRadians != undefined) {
+        if (sunLongitudeRadians != undefined && cutLongitudeRadians != undefined) {
             const sunTurnRadians =
-                sunLongitudeRadians -
-                (current.sunLongitudeRadians ??
-                    Math.atan2(-camera.position.z, camera.position.x) -
-                        (current.view?.closeUpTurnFromCutRadians ?? 0));
+                current.sunLongitudeRadians == undefined
+                    ? cutLongitudeRadians -
+                      Math.atan2(-camera.position.z, camera.position.x) +
+                      (current.view?.closeUpTurnFromCutRadians ?? 0)
+                    : sunLongitudeRadians - current.sunLongitudeRadians;
             (current.cameraFlight?.startPosition ?? camera.position).applyAxisAngle(
                 new Vector3(0, 1, 0),
                 sunTurnRadians,
@@ -931,7 +941,7 @@ export function createCosmosScene() {
         current.sunLongitudeRadians = sunLongitudeRadians;
         flyCamera({
             frameSeconds,
-            sunLongitudeRadians,
+            cutLongitudeRadians,
         });
         controls.update();
         const focusScale = getDistanceFocusScale();

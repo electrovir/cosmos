@@ -27,6 +27,7 @@ import {
     MatterState,
     type ValueRange,
 } from '../../data/celestial-body.js';
+import {getBodyStats} from '../body-stats.js';
 import {createStaticFileUrl} from '../frontend-state/frontend-state.js';
 import {playPronunciation} from '../pronunciation.js';
 import {type BodyPick, type SceneReadout} from '../three/cosmos-scene.js';
@@ -484,16 +485,6 @@ export const VirBodyPage = defineElement<
                         ></${ViraButton}>
                         <h1>${inputs.summary.name}</h1>
                     </div>
-                    ${inputs.summary.knownMoonCount == undefined
-                        ? nothing
-                        : html`
-                              <table>
-                                  <tr>
-                                      <th>Known moons</th>
-                                      <td>${inputs.summary.knownMoonCount}</td>
-                                  </tr>
-                              </table>
-                          `}
                     ${details
                         ? html`
                               ${details.description.split('\n\n').map((paragraph) => {
@@ -501,6 +492,19 @@ export const VirBodyPage = defineElement<
                                       <p>${paragraph}</p>
                                   `;
                               })}
+                              <table>
+                                  ${getBodyStats({
+                                      summary: inputs.summary,
+                                      details,
+                                  }).map((stat) => {
+                                      return html`
+                                          <tr>
+                                              <th>${stat.label}</th>
+                                              <td>${stat.value}</td>
+                                          </tr>
+                                      `;
+                                  })}
+                              </table>
                               ${isCutOpen && isLayersPanelCollapsed
                                   ? html`
                                         <div class="layers">${renderLayerButtons(details)}</div>

@@ -1,3 +1,4 @@
+// cspell:words lassell
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const arielRadiusKm = 578.9;
@@ -8,6 +9,12 @@ const ariel: BodyDetails = {
         "The brightest of Uranus' moons, with the youngest-looking surface, crossed by long valleys.",
         'Like the other large moons of Uranus, it was seen up close only once, by Voyager 2 in 1986, which saw only its southern half.',
     ].join('\n\n'),
+    massKg: 1.251e21,
+    meanTemperatureKelvin: 60,
+    discovery: {
+        year: 1851,
+        discoverer: 'William Lassell',
+    },
     layers: [
         {
             id: 'interior',

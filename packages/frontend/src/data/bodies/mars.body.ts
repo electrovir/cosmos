@@ -14,6 +14,23 @@ const mars: BodyDetails = {
         'A cold desert planet, red from rusty dust. It has the tallest volcano and the longest canyon in the Solar System.',
         'Dry riverbeds and lake beds show it once had liquid water. Most of what is left is frozen in its polar caps and underground.',
     ].join('\n\n'),
+    massKg: 6.4171e23,
+    meanTemperatureKelvin: 210,
+    atmosphereGases: [
+        {
+            gas: 'CO₂',
+            percent: 95.1,
+        },
+        {
+            gas: 'N₂',
+            percent: 2.59,
+        },
+        {
+            gas: 'Ar',
+            percent: 1.94,
+        },
+    ],
+    surfacePressureBar: 0.00636,
     layers: [
         {
             id: 'core',

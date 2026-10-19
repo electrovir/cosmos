@@ -6,6 +6,9 @@ export const moonRadiusKm = 1737.4;
 export const moonSiderealPeriodDays = 27.321661;
 /** The Moon's average distance from Earth. */
 export const moonSemiMajorAxisKm = 384_399;
+export const moonEccentricity = 0.0549;
+/** The Moon's equator against its own orbit, which its pole's formula alone doesn't give. */
+export const moonAxialTiltDegrees = 6.68;
 
 /** Earth's equatorial radius, which the Moon's distance is measured in by its parallax. */
 const earthEquatorialRadiusKm = 6378.14;

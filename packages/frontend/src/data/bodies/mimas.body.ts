@@ -13,6 +13,12 @@ const mimas: BodyDetails = {
         "Saturn's smallest round moon. One crater, Herschel, is a third as wide as Mimas itself, giving it the look of the Death Star.",
         'Wobbles in its orbit suggest a hidden ocean under its ice that formed only within the last 25 million years.',
     ].join('\n\n'),
+    massKg: 3.7493e19,
+    meanTemperatureKelvin: 64,
+    discovery: {
+        year: 1789,
+        discoverer: 'William Herschel',
+    },
     layers: [
         {
             id: 'core',

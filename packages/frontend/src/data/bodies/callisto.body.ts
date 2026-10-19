@@ -13,6 +13,12 @@ const callisto: BodyDetails = {
         'The most heavily cratered world in the Solar System. Its dark icy surface has barely changed in four billion years.',
         "Unlike Ganymede, its rock and ice never fully separated. The way it disturbs Jupiter's magnetic field hints at a salty ocean deep under the ice.",
     ].join('\n\n'),
+    massKg: 1.0759e23,
+    meanTemperatureKelvin: 134,
+    discovery: {
+        year: 1610,
+        discoverer: 'Galileo Galilei',
+    },
     layers: [
         {
             id: 'interior',

@@ -1,3 +1,4 @@
+// cspell:words urbain verrier
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const neptuneRadiusKm = 24_622;
@@ -12,6 +13,26 @@ const neptune: BodyDetails = {
         'The farthest planet, an ice giant found by math before anyone saw it: its pull was tugging Uranus off course.',
         'Methane gives it a deep blue color. It has the fastest winds in the Solar System, over 2,000 km/h, and dark storms the size of Earth.',
     ].join('\n\n'),
+    massKg: 1.02409e26,
+    meanTemperatureKelvin: 72,
+    discovery: {
+        year: 1846,
+        discoverer: 'Johann Galle and Urbain Le Verrier',
+    },
+    atmosphereGases: [
+        {
+            gas: 'H₂',
+            percent: 80,
+        },
+        {
+            gas: 'He',
+            percent: 19,
+        },
+        {
+            gas: 'CH₄',
+            percent: 1.5,
+        },
+    ],
     layers: [
         {
             id: 'core',

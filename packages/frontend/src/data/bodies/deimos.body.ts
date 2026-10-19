@@ -1,4 +1,4 @@
-// cspell:words regolith
+// cspell:words regolith asaph
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const deimosRadiusKm = 6.27;
@@ -10,6 +10,12 @@ const deimos: BodyDetails = {
         "The smaller and farther of Mars' two moons, about 15 kilometers long. It takes 30 hours to circle Mars, only a little longer than a Mars day, so it drifts slowly across the Martian sky.",
         "Both of Mars' moons may be asteroids Mars captured, or pieces thrown off by a giant impact on Mars.",
     ].join('\n\n'),
+    massKg: 1.4762e15,
+    meanTemperatureKelvin: 233,
+    discovery: {
+        year: 1877,
+        discoverer: 'Asaph Hall',
+    },
     layers: [
         {
             id: 'interior',

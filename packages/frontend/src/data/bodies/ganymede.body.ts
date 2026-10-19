@@ -13,6 +13,12 @@ const ganymede: BodyDetails = {
         'The largest moon in the Solar System, bigger than the planet Mercury. It is the only moon known to make its own magnetic field.',
         'Old dark regions and younger bright, grooved terrain cover its icy surface. Deep below is a salty ocean, sandwiched between layers of ice.',
     ].join('\n\n'),
+    massKg: 1.4819e23,
+    meanTemperatureKelvin: 110,
+    discovery: {
+        year: 1610,
+        discoverer: 'Galileo Galilei',
+    },
     layers: [
         {
             id: 'core',

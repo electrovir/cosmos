@@ -9,6 +9,12 @@ const tethys: BodyDetails = {
         'A moon made almost entirely of water ice, barely denser than water.',
         'A huge crater, Odysseus, covers much of one side, and a canyon, Ithaca Chasma, runs three quarters of the way around it.',
     ].join('\n\n'),
+    massKg: 6.1745e20,
+    meanTemperatureKelvin: 86,
+    discovery: {
+        year: 1684,
+        discoverer: 'Giovanni Cassini',
+    },
     layers: [
         {
             id: 'ice',

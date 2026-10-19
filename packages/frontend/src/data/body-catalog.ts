@@ -3,6 +3,7 @@ import {moonRadiusKm} from '../physics/moon-position.js';
 import {BodyId, BodyKind, type BodyDetails, type BodySummary} from './celestial-body.js';
 
 export const kilometersPerAstronomicalUnit = 149_597_870.7;
+export const earthMassKg = 5.9722e24;
 
 /**
  * Every body the app knows about. Orbits are the J2000 elements from Standish's "Keplerian Elements

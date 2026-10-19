@@ -8,6 +8,12 @@ const oberon: BodyDetails = {
         "Uranus' outermost large moon, old and heavily cratered, with dark material on some crater floors.",
         'Voyager 2 spotted a mountain about 11 kilometers high along its edge.',
     ].join('\n\n'),
+    massKg: 3.076e21,
+    meanTemperatureKelvin: 75,
+    discovery: {
+        year: 1787,
+        discoverer: 'William Herschel',
+    },
     layers: [
         {
             id: 'interior',

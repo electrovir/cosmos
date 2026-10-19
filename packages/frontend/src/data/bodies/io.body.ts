@@ -13,6 +13,12 @@ const io: BodyDetails = {
         'The most volcanic world known, with hundreds of active volcanoes. Some throw plumes of sulfur hundreds of kilometers high.',
         "Europa and Ganymede keep its orbit slightly stretched, so Jupiter's pull squeezes it harder and softer through each orbit. That flexing heats its insides.",
     ].join('\n\n'),
+    massKg: 8.9319e22,
+    meanTemperatureKelvin: 110,
+    discovery: {
+        year: 1610,
+        discoverer: 'Galileo Galilei',
+    },
     layers: [
         {
             id: 'core',

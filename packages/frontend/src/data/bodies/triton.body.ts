@@ -1,4 +1,4 @@
-// cspell:words kuiper
+// cspell:words kuiper lassell
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const tritonRadiusKm = 1353.4;
@@ -10,6 +10,19 @@ const triton: BodyDetails = {
         "Neptune's largest moon, and the only large moon that orbits backward, against its planet's spin. It was probably a world from the Kuiper Belt, like Pluto, that Neptune captured.",
         'Voyager 2 saw geysers of nitrogen gas on it. At about 38 kelvins, its surface is among the coldest ever measured.',
     ].join('\n\n'),
+    massKg: 2.139e22,
+    meanTemperatureKelvin: 38,
+    discovery: {
+        year: 1846,
+        discoverer: 'William Lassell',
+    },
+    atmosphereGases: [
+        {
+            gas: 'N₂',
+            percent: 99.9,
+        },
+    ],
+    surfacePressureBar: 1.4e-5,
     layers: [
         {
             id: 'core',

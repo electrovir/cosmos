@@ -13,6 +13,19 @@ const venus: BodyDetails = {
         "Nearly Earth's twin in size, but smothered in carbon dioxide air 90 times as heavy as Earth's. Its greenhouse effect makes it the hottest planet, hotter even than Mercury.",
         'It spins backward and so slowly that a day there lasts longer than its year. Its thick clouds of sulfuric acid hide the surface and reflect most sunlight, making it the brightest planet in our sky.',
     ].join('\n\n'),
+    massKg: 4.8675e24,
+    meanTemperatureKelvin: 737,
+    atmosphereGases: [
+        {
+            gas: 'CO₂',
+            percent: 96.5,
+        },
+        {
+            gas: 'N₂',
+            percent: 3.5,
+        },
+    ],
+    surfacePressureBar: 92,
     layers: [
         {
             id: 'core',

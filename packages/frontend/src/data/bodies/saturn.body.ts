@@ -14,6 +14,18 @@ const saturn: BodyDetails = {
         'The second biggest planet, and the least dense: it would float in a big enough bathtub. Its fast spin flattens it so much that it bulges noticeably at the equator.',
         'Its bright rings are billions of chunks of water ice, from grains of dust to boulders the size of houses. They span almost the distance from Earth to the Moon, yet are mostly only about ten meters thick.',
     ].join('\n\n'),
+    massKg: 5.6832e26,
+    meanTemperatureKelvin: 134,
+    atmosphereGases: [
+        {
+            gas: 'H₂',
+            percent: 96.3,
+        },
+        {
+            gas: 'He',
+            percent: 3.25,
+        },
+    ],
     layers: [
         {
             id: 'dilute-core',

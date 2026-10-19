@@ -1,4 +1,4 @@
-// cspell:words iess
+// cspell:words iess christiaan
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const titanRadiusKm = 2574.7;
@@ -13,6 +13,23 @@ const titan: BodyDetails = {
         "Saturn's largest moon, and the only moon with a thick atmosphere. Its orange haze hides the surface from sight.",
         'Under the haze it has rain, rivers, lakes, and seas, of liquid methane and ethane instead of water. A salty water ocean lies deep under its icy crust.',
     ].join('\n\n'),
+    massKg: 1.3452e23,
+    meanTemperatureKelvin: 94,
+    discovery: {
+        year: 1655,
+        discoverer: 'Christiaan Huygens',
+    },
+    atmosphereGases: [
+        {
+            gas: 'N₂',
+            percent: 98.4,
+        },
+        {
+            gas: 'CH₄',
+            percent: 1.4,
+        },
+    ],
+    surfacePressureBar: 1.467,
     layers: [
         {
             id: 'core',

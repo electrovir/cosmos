@@ -12,6 +12,26 @@ const uranus: BodyDetails = {
         'An ice giant tipped on its side, perhaps knocked over by a giant collision long ago. Each pole gets 42 years of sunlight, then 42 years of darkness.',
         'Methane in its air soaks up red light, giving it a pale blue-green color. It is the coldest planet, giving off almost no heat of its own.',
     ].join('\n\n'),
+    massKg: 8.6811e25,
+    meanTemperatureKelvin: 76,
+    discovery: {
+        year: 1781,
+        discoverer: 'William Herschel',
+    },
+    atmosphereGases: [
+        {
+            gas: 'H₂',
+            percent: 82.5,
+        },
+        {
+            gas: 'He',
+            percent: 15.2,
+        },
+        {
+            gas: 'CH₄',
+            percent: 2.3,
+        },
+    ],
     layers: [
         {
             id: 'core',

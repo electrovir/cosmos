@@ -15,6 +15,18 @@ const jupiter: BodyDetails = {
         'The biggest planet, more than twice as massive as all the others put together. It has no solid surface: its gas just gets denser and hotter the deeper it goes.',
         'Its stripes are bands of clouds blown in opposite directions by fast winds. The Great Red Spot is a storm wider than Earth that has raged for centuries.',
     ].join('\n\n'),
+    massKg: 1.89813e27,
+    meanTemperatureKelvin: 165,
+    atmosphereGases: [
+        {
+            gas: 'H₂',
+            percent: 89.8,
+        },
+        {
+            gas: 'He',
+            percent: 10.2,
+        },
+    ],
     layers: [
         {
             id: 'dilute-core',

@@ -1,4 +1,4 @@
-// cspell:words regolith stickney
+// cspell:words regolith stickney asaph
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const phobosRadiusKm = 11.08;
@@ -10,6 +10,12 @@ const phobos: BodyDetails = {
         "The larger of Mars' two small moons, a lumpy rock about 27 kilometers long. It circles Mars three times a day, closer to its planet than any other moon.",
         "Mars' pull is slowly drawing it inward. In 30 to 50 million years it will break apart into a ring or crash into Mars.",
     ].join('\n\n'),
+    massKg: 1.0659e16,
+    meanTemperatureKelvin: 233,
+    discovery: {
+        year: 1877,
+        discoverer: 'Asaph Hall',
+    },
     layers: [
         {
             id: 'interior',

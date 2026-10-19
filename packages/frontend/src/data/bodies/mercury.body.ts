@@ -14,6 +14,8 @@ const mercury: BodyDetails = {
         'The smallest planet and the closest to the Sun. With almost no air to hold heat, its surface swings from hot enough to melt lead by day to far colder than Antarctica by night.',
         'Its iron core fills most of the planet, so it is nearly as dense as Earth despite being barely bigger than the Moon.',
     ].join('\n\n'),
+    massKg: 3.3011e23,
+    meanTemperatureKelvin: 440,
     layers: [
         {
             id: 'inner-core',

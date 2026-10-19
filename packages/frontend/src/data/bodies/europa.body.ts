@@ -13,6 +13,12 @@ const europa: BodyDetails = {
         "An icy moon a little smaller than Earth's Moon, with a smooth surface crossed by long reddish cracks.",
         "Under its ice is a global ocean of salty water, with about twice as much water as all of Earth's oceans. That makes it one of the likeliest places to look for life beyond Earth.",
     ].join('\n\n'),
+    massKg: 4.7998e22,
+    meanTemperatureKelvin: 102,
+    discovery: {
+        year: 1610,
+        discoverer: 'Galileo Galilei',
+    },
     layers: [
         {
             id: 'core',

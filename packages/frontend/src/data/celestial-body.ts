@@ -212,7 +212,31 @@ export type BodyDetails = {
      * Crust layers fill the space between them, with thicknesses that vary from place to place.
      */
     layers: ReadonlyArray<Readonly<BodyLayer>>;
+    massKg: number;
+    /**
+     * Averaged over the surface and over day and night. For a body without a surface, it's where
+     * the pressure is 1 bar, or the photosphere for the Sun.
+     */
+    meanTemperatureKelvin: number;
 } & PartialWithUndefined<{
+    /** Omitted for a body known since prehistoric times. */
+    discovery: {
+        year: number;
+        discoverer: string;
+    };
+    /**
+     * The most common gases by volume, most common first. Omitted for a body with no atmosphere or
+     * only a thin exosphere.
+     */
+    atmosphereGases: ReadonlyArray<
+        Readonly<{
+            /** A chemical formula, such as `CO₂`. */
+            gas: string;
+            percent: number;
+        }>
+    >;
+    /** Omitted for a body without a solid or liquid surface under its atmosphere. */
+    surfacePressureBar: number;
     magneticDipole: MagneticDipole;
     /** How to stretch thin outer layers so they can be seen. Omitted for a body drawn to scale. */
     exaggeratedRadialScale: RadialScale;

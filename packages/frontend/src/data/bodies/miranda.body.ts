@@ -1,4 +1,4 @@
-// cspell:words rupes verona
+// cspell:words rupes verona kuiper
 import {BodyId, LayerRegion, MatterState, type BodyDetails} from '../celestial-body.js';
 
 const mirandaRadiusKm = 235.8;
@@ -9,6 +9,12 @@ const miranda: BodyDetails = {
         "The smallest of Uranus' five large moons, with a patchwork surface of cliffs, grooves, and ridges unlike any other.",
         'Its cliff Verona Rupes may be up to 20 kilometers high, the tallest known in the Solar System.',
     ].join('\n\n'),
+    massKg: 6.4e19,
+    meanTemperatureKelvin: 60,
+    discovery: {
+        year: 1948,
+        discoverer: 'Gerard Kuiper',
+    },
     layers: [
         {
             id: 'interior',

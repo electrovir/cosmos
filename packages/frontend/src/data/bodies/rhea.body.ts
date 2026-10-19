@@ -8,6 +8,12 @@ const rhea: BodyDetails = {
         "Saturn's second largest moon, an icy ball heavily cratered on its leading side.",
         'Its ice and rock may never have fully separated, leaving it much the same all the way through.',
     ].join('\n\n'),
+    massKg: 2.3065e21,
+    meanTemperatureKelvin: 76,
+    discovery: {
+        year: 1672,
+        discoverer: 'Giovanni Cassini',
+    },
     layers: [
         {
             id: 'interior',

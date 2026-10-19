@@ -8,6 +8,12 @@ const iapetus: BodyDetails = {
         'A two-toned moon. One side is as dark as coal and the other as bright as snow.',
         'A ridge up to 20 kilometers high runs along much of its equator, giving it the shape of a walnut.',
     ].join('\n\n'),
+    massKg: 1.8056e21,
+    meanTemperatureKelvin: 100,
+    discovery: {
+        year: 1671,
+        discoverer: 'Giovanni Cassini',
+    },
     layers: [
         {
             id: 'interior',

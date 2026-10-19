@@ -13,6 +13,23 @@ const pluto: BodyDetails = {
         'A dwarf planet in the Kuiper Belt, a ring of icy worlds beyond Neptune. It was called the ninth planet until 2006, when astronomers found it was one of many similar bodies.',
         'New Horizons flew past in 2015 and found mountains of water ice and a bright, heart-shaped plain of frozen nitrogen that slowly churns like a lava lamp.',
     ].join('\n\n'),
+    massKg: 1.303e22,
+    meanTemperatureKelvin: 44,
+    discovery: {
+        year: 1930,
+        discoverer: 'Clyde Tombaugh',
+    },
+    atmosphereGases: [
+        {
+            gas: 'N₂',
+            percent: 99,
+        },
+        {
+            gas: 'CH₄',
+            percent: 0.5,
+        },
+    ],
+    surfacePressureBar: 1.15e-5,
     layers: [
         {
             id: 'core',

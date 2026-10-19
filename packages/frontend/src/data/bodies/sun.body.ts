@@ -11,6 +11,18 @@ const sun: BodyDetails = {
         'Sunspots are cooler, darker patches where knots of magnetic field break through the surface. Glowing loops of plasma arch between them along the field lines.',
         'When those fields snap, they release a flare. Some also fling plasma into space as a coronal mass ejection, which can set off auroras on Earth.',
     ].join('\n\n'),
+    massKg: 1.9885e30,
+    meanTemperatureKelvin: 5772,
+    atmosphereGases: [
+        {
+            gas: 'H',
+            percent: 92.1,
+        },
+        {
+            gas: 'He',
+            percent: 7.8,
+        },
+    ],
     layers: [
         {
             id: 'core',
